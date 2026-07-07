@@ -1,0 +1,195 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ── LIGHT MODE — Red, White & Navy Blue ──────────────────────────────────── */
+:root {
+  /* Palette foundations */
+  --background:         210 40% 98%;   /* near-white with cool tint */
+  --foreground:         222 47% 11%;   /* deep navy text */
+  --border:             214 32% 91%;   /* light gray border */
+
+  /* Cards */
+  --card:               0 0% 100%;     /* pure white */
+  --card-foreground:    222 47% 11%;
+  --card-border:        214 32% 91%;
+
+  /* Sidebar — very dark navy */
+  --sidebar:            222 47% 8%;
+  --sidebar-foreground: 213 27% 80%;
+  --sidebar-border:     222 47% 14%;
+  --sidebar-primary:    0 72% 51%;     /* crimson red — active state */
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent:     222 47% 13%;
+  --sidebar-accent-foreground: 0 0% 96%;
+
+  /* Popover */
+  --popover:            0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --popover-border:     214 32% 91%;
+
+  /* Primary — crimson red */
+  --primary:            0 72% 51%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Secondary — light gray */
+  --secondary:          214 32% 93%;
+  --secondary-foreground: 222 47% 20%;
+
+  /* Muted */
+  --muted:              210 40% 96%;
+  --muted-foreground:   215 16% 47%;
+
+  /* Accent — royal blue */
+  --accent:             217 72% 47%;
+  --accent-foreground:  0 0% 100%;
+
+  /* Destructive — red */
+  --destructive:        0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+
+  --input:              214 32% 91%;
+  --ring:               0 72% 51%;
+
+  /* Recharts palette */
+  --chart-1:  0 72% 51%;     /* red */
+  --chart-2:  217 72% 47%;   /* blue */
+  --chart-3:  142 76% 36%;   /* green */
+  --chart-4:  40 96% 50%;    /* amber */
+  --chart-5:  262 83% 58%;   /* violet */
+
+  --app-font-sans: 'Inter', system-ui, sans-serif;
+  --app-font-mono: 'JetBrains Mono', 'Fira Code', Menlo, monospace;
+  --radius: 0.5rem;
+
+  --shadow-sm:  0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow:     0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.06);
+  --shadow-md:  0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+  --shadow-lg:  0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+}
+
+/* ── DARK MODE ────────────────────────────────────────────────────────────── */
+.dark {
+  --background:         222 47% 8%;
+  --foreground:         210 40% 96%;
+  --border:             222 47% 18%;
+  --card:               222 47% 11%;
+  --card-foreground:    210 40% 96%;
+  --card-border:        222 47% 18%;
+  --sidebar:            222 47% 5%;
+  --sidebar-foreground: 213 27% 75%;
+  --sidebar-border:     222 47% 10%;
+  --sidebar-primary:    0 72% 58%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent:     222 47% 11%;
+  --sidebar-accent-foreground: 210 40% 96%;
+  --popover:            222 47% 11%;
+  --popover-foreground: 210 40% 96%;
+  --popover-border:     222 47% 18%;
+  --primary:            0 72% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary:          222 47% 16%;
+  --secondary-foreground: 210 40% 96%;
+  --muted:              222 47% 14%;
+  --muted-foreground:   215 16% 60%;
+  --accent:             217 72% 55%;
+  --accent-foreground:  0 0% 100%;
+  --destructive:        0 72% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --input:              222 47% 18%;
+  --ring:               0 72% 58%;
+  --chart-1: 0 72% 58%;
+  --chart-2: 217 72% 55%;
+  --chart-3: 142 76% 45%;
+  --chart-4: 40 96% 55%;
+  --chart-5: 262 83% 65%;
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground; }
+}
+
+@layer utilities {
+  .sidebar-nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+           text-sidebar-foreground transition-all duration-150 cursor-pointer select-none;
+  }
+  .sidebar-nav-item:hover {
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(0 0% 100%);
+  }
+  .sidebar-nav-item.active {
+    background-color: hsl(var(--sidebar-accent));
+    color: hsl(var(--sidebar-primary));
+    border-left: 3px solid hsl(var(--sidebar-primary));
+  }
+  .sidebar-nav-item.active .nav-icon {
+    color: hsl(var(--sidebar-primary));
+  }
+  .gradient-red-blue {
+    background: linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(217 72% 47%) 100%);
+  }
+  .gradient-navy {
+    background: linear-gradient(180deg, hsl(222 47% 12%) 0%, hsl(222 47% 8%) 100%);
+  }
+}

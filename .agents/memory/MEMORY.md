@@ -1,0 +1,1 @@
+- [Mesurado Dashboard Architecture](mesurado-dashboard.md) — Next.js 14 + Appwrite stack; auth, key hashing, quota, and routing decisions worth preserving.
