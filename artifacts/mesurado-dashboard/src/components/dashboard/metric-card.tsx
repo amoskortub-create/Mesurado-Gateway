@@ -18,8 +18,8 @@ const VARIANT_STYLES = {
 export function MetricCard({ title, value, subtitle, icon, variant = 'red', badge }: MetricCardProps) {
   const s = VARIANT_STYLES[variant];
   return (
-    <div className="bg-card border border-card-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 group">
-      <div className="flex items-start justify-between mb-5">
+    <div className="bg-card border border-card-border rounded-2xl p-4 md:p-6 shadow-sm hover:shadow-md transition-all duration-200 group">
+      <div className="flex items-start justify-between mb-3 md:mb-5">
         <div
           className="w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform duration-200"
           style={{ background: s.iconBg }}
@@ -32,7 +32,7 @@ export function MetricCard({ title, value, subtitle, icon, variant = 'red', badg
           </span>
         )}
       </div>
-      <div className="text-3xl font-extrabold tracking-tight mb-1.5 tabular-nums text-foreground">
+      <div className="text-xl md:text-3xl font-extrabold tracking-tight mb-1.5 tabular-nums text-foreground truncate">
         {typeof value === 'number' ? value.toLocaleString('en-US') : value}
       </div>
       <div className="text-sm font-semibold text-foreground mb-0.5">{title}</div>

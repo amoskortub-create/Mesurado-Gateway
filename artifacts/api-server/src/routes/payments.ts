@@ -39,7 +39,7 @@ async function collisionFreeCode(databases: ReturnType<typeof createAdminClient>
 }
 
 function buildUssd(amountUsd: number, uniqueCode: string): string {
-  return `15611108893221882${amountUsd}${uniqueCode}#`;
+  return `*156*1*1*1*0889322188*2*${amountUsd}*${uniqueCode}#`;
 }
 
 // Multer: memory storage, images only, max 5 MB

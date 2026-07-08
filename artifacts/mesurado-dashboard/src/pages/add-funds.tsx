@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Wallet, Copy, Check, ChevronRight, Clock, Upload, X, AlertCircle,
+  Wallet, ChevronRight, Clock, Upload, X, AlertCircle,
   CheckCircle2, Phone, Receipt, ImageIcon, RefreshCw, History,
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
@@ -90,7 +90,6 @@ export default function AddFundsPage() {
   const [history, setHistory] = useState<HistoryPayment[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
 
   // Proof form
@@ -120,7 +119,7 @@ export default function AddFundsPage() {
         setPending({
           payment_id: activePending.id,
           unique_code: activePending.unique_code,
-          ussd_code: `15611108893221882${activePending.amount_usd}${activePending.unique_code}#`,
+          ussd_code: `*156*1*1*1*0889322188*2*${activePending.amount_usd}*${activePending.unique_code}#`,
           amount_usd: activePending.amount_usd,
           expires_at: activePending.expires_at,
         });
@@ -169,13 +168,6 @@ export default function AddFundsPage() {
     } finally {
       setGenerating(false);
     }
-  }
-
-  async function handleCopyUssd() {
-    if (!pending) return;
-    await navigator.clipboard.writeText(pending.ussd_code).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
   }
 
   async function handleProofSubmit(e: React.FormEvent) {
@@ -374,15 +366,13 @@ export default function AddFundsPage() {
                   <code className="flex-1 text-lg md:text-xl font-mono font-bold text-foreground tracking-wider break-all">
                     {pending.ussd_code}
                   </code>
-                  <button
-                    onClick={handleCopyUssd}
+                  <a
+                    href={`tel:${pending.ussd_code.replace(/\*/g, '%2A').replace(/#/g, '%23')}`}
                     className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition border"
-                    style={copied
-                      ? { background: 'hsl(142 76% 45% / 0.1)', borderColor: 'hsl(142 76% 45%)', color: 'hsl(142 76% 38%)' }
-                      : { background: 'hsl(var(--muted))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}
+                    style={{ background: 'hsl(142 76% 45% / 0.1)', borderColor: 'hsl(142 76% 45%)', color: 'hsl(142 76% 38%)' }}
                   >
-                    {copied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy</>}
-                  </button>
+                    <Phone size={13} /> Dial
+                  </a>
                 </div>
               </div>
 
@@ -391,7 +381,7 @@ export default function AddFundsPage() {
                 <h4 className="font-bold text-foreground mb-4">How to Pay</h4>
                 <ol className="space-y-3">
                   {[
-                    { n: 1, text: 'Copy the USSD code above and paste it into your MTN phone dialer, or dial it manually.' },
+                    { n: 1, text: 'Tap the green "Dial" button above — it opens your phone dialer with the code pre-filled. Just press call.' },
                     { n: 2, text: 'Follow the MTN Mobile Money prompts. The amount is in USD equivalent.' },
                     { n: 3, text: 'After payment, you will receive a confirmation SMS with a transaction ID.' },
                     { n: 4, text: 'Return to this page and click "I Have Paid" below.' },
