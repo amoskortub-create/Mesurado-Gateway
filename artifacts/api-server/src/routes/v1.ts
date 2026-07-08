@@ -8,6 +8,7 @@ import { z } from 'zod/v4';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/appwrite.js';
 import { countTokens, calcCost } from '../lib/token-utils.js';
 import { hashApiKey } from '../lib/key-hash.js';
+import { resolveCoreUrl } from '../lib/core-url.js';
 
 const router: IRouter = Router();
 
@@ -99,7 +100,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     await users.updatePrefs(userId, { ...prefs, mesurado_tokens_remaining: preChargedBalance });
 
     // 5. Forward to Mesurado Engine Core
-    const coreUrl = process.env.MESURADO_CORE_URL;
+    const coreUrl = resolveCoreUrl();
     const masterToken = process.env.MESURADO_MASTER_TOKEN;
 
     if (!coreUrl || !masterToken) {

@@ -4,6 +4,7 @@ import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/a
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
 import { hashApiKey, keyPrefix } from '../lib/key-hash.js';
 import { countTokens, calcCost } from '../lib/token-utils.js';
+import { resolveCoreUrl } from '../lib/core-url.js';
 
 const router: IRouter = Router();
 
@@ -83,7 +84,7 @@ router.post('/chat', async (req: Request, res: Response) => {
     }
 
     // Forward to Mesurado Engine Core
-    const coreUrl = process.env.MESURADO_CORE_URL;
+    const coreUrl = resolveCoreUrl();
     const masterToken = process.env.MESURADO_MASTER_TOKEN;
 
     if (!coreUrl || !masterToken) {
