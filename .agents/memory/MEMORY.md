@@ -1,1 +1,2 @@
 - [Mesurado mock-vs-real split](mesurado-mock-split.md) — all mock data/auth lives in src/lib/mock.ts + src/lib/auth-context.tsx; swap those two files for real API calls when backend is ready.
+- [Mesurado artifact layout](mesurado-artifact-layout.md) — dashboard at artifacts/mesurado-dashboard (port 22802, previewPath /), api-server at artifacts/api-server (port 8080, paths /api + /v1); migration-backup duplicates in .migration-backup/ are stale and unstarted.
