@@ -55,3 +55,12 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+APPWRITE_ENDPOINT = "https://mediatechliberia.online/v1"
+APPWRITE_PROJECT_ID = "mesurado01"
+VITE_APPWRITE_ENDPOINT = "https://mediatechliberia.online/v1"
+VITE_APPWRITE_PROJECT_ID = "mesurado01"
+VITE_APPWRITE_PROJECT_NAME = "Mesurado AI"

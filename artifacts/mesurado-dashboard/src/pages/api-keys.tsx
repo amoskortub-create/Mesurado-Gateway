@@ -1,12 +1,20 @@
-import { useState } from 'react';
-import { Plus, Copy, Trash2, Key, Check, Loader2, AlertCircle, Shield } from 'lucide-react';
-import { MOCK_API_KEYS } from '@/lib/mock';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Copy, Trash2, Key, Check, Loader2, AlertCircle, Shield, RefreshCw } from 'lucide-react';
+import { appwriteClient, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { formatDate, maskKeyPrefix } from '@/lib/utils';
 
-type MockKey = typeof MOCK_API_KEYS[0];
+interface ApiKey {
+  $id: string;
+  label: string;
+  key_prefix: string;
+  is_active: boolean;
+  created_at: string;
+}
 
 export default function ApiKeysPage() {
-  const [keys, setKeys] = useState<MockKey[]>([...MOCK_API_KEYS]);
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [creating, setCreating] = useState(false);
@@ -14,32 +22,78 @@ export default function ApiKeysPage() {
   const [copied, setCopied] = useState('');
   const [deleting, setDeleting] = useState('');
 
+  const fetchKeys = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/keys/list', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch keys');
+      const data = await res.json() as { keys: ApiKey[] };
+      setKeys(data.keys);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load API keys');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchKeys(); }, [fetchKeys]);
+
+  // Real-time: re-fetch when api_keys collection changes
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    try {
+      unsub = appwriteClient.subscribe(
+        `databases.${DATABASE_ID}.collections.${COLLECTIONS.API_KEYS}.documents`,
+        (ev) => {
+          const relevant = (ev.events as string[]).some(
+            e => e.includes('.create') || e.includes('.update') || e.includes('.delete'),
+          );
+          if (relevant) fetchKeys();
+        },
+      );
+    } catch { /* no Appwrite session yet */ }
+    return () => { unsub?.(); };
+  }, [fetchKeys]);
+
   async function createKey() {
     if (!newLabel.trim()) return;
     setCreating(true);
-    await new Promise(r => setTimeout(r, 700));
-    const bytes = new Uint8Array(8);
-    crypto.getRandomValues(bytes);
-    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    const keyString = `mesurado_sk_live_${hex}`;
-    const newKey: MockKey = {
-      $id: `key_${Date.now()}`,
-      label: newLabel.trim(),
-      key_prefix: keyString.slice(0, 24),
-      is_active: true,
-      created_at: new Date().toISOString(),
-    };
-    setKeys(prev => [newKey, ...prev]);
-    setCreatedKey(keyString);
-    setNewLabel('');
-    setCreating(false);
+    try {
+      const res = await fetch('/api/keys/generate', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: newLabel.trim() }),
+      });
+      const data = await res.json() as { success?: boolean; keyString?: string; error?: string };
+      if (!res.ok || !data.success) throw new Error(data.error ?? 'Failed to generate key');
+      setCreatedKey(data.keyString ?? '');
+      setNewLabel('');
+      await fetchKeys();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate key');
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function deleteKey(id: string) {
     setDeleting(id);
-    await new Promise(r => setTimeout(r, 500));
-    setKeys(prev => prev.map(k => k.$id === id ? { ...k, is_active: false } : k));
-    setDeleting('');
+    try {
+      const res = await fetch('/api/keys/delete', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key_id: id }),
+      });
+      if (!res.ok) throw new Error('Failed to delete key');
+      await fetchKeys();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete key');
+    } finally {
+      setDeleting('');
+    }
   }
 
   async function copyToClipboard(text: string, id: string) {
@@ -50,7 +104,7 @@ export default function ApiKeysPage() {
     } catch { /* ignore */ }
   }
 
-  function openModal() { setCreatedKey(''); setNewLabel(''); setShowModal(true); }
+  function openModal()  { setCreatedKey(''); setNewLabel(''); setShowModal(true); }
   function closeModal() { setShowModal(false); setCreatedKey(''); }
 
   return (
@@ -60,12 +114,24 @@ export default function ApiKeysPage() {
           <h2 className="text-2xl font-extrabold text-foreground">API Keys</h2>
           <p className="text-muted-foreground text-sm mt-0.5">Manage developer credentials for the Mesurado API</p>
         </div>
-        <button onClick={openModal}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition hover:opacity-90 shadow-sm active:scale-[0.98]"
-          style={{ background: 'hsl(0 72% 51%)' }}>
-          <Plus size={16} />Generate Key
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={fetchKeys} disabled={loading}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition px-3 py-2 rounded-lg hover:bg-muted disabled:opacity-50">
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button onClick={openModal}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition hover:opacity-90 shadow-sm active:scale-[0.98]"
+            style={{ background: 'hsl(0 72% 51%)' }}>
+            <Plus size={16} />Generate Key
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="px-4 py-3 rounded-xl text-sm text-red-700 bg-red-50 border border-red-200">
+          {error}
+        </div>
+      )}
 
       <div className="flex items-start gap-3 p-4 rounded-xl border text-sm"
         style={{ background: 'hsl(217 72% 47% / 0.06)', borderColor: 'hsl(217 72% 47% / 0.2)' }}>
@@ -82,52 +148,69 @@ export default function ApiKeysPage() {
       </div>
 
       <div className="bg-card border border-card-border rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                {['Label', 'Key Preview', 'Created', 'Status', 'Actions'].map(h => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {keys.map(key => (
-                <tr key={key.$id} className="border-b border-border last:border-0 hover:bg-muted/25 transition">
-                  <td className="px-5 py-4">
-                    <span className="font-semibold text-sm text-foreground">{key.label}</span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs font-mono text-muted-foreground bg-muted px-2.5 py-1 rounded-lg">
-                        {maskKeyPrefix(key.key_prefix)}
-                      </code>
-                      <button onClick={() => copyToClipboard(key.key_prefix, key.$id)}
-                        className="p-1 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground">
-                        {copied === key.$id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{formatDate(key.created_at)}</td>
-                  <td className="px-5 py-4">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${key.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                      {key.is_active ? '● Active' : '● Frozen'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <button onClick={() => deleteKey(key.$id)} disabled={deleting === key.$id || !key.is_active}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-destructive hover:bg-red-50 px-3 py-1.5 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed">
-                      {deleting === key.$id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                      {deleting === key.$id ? 'Deactivating…' : 'Deactivate'}
-                    </button>
-                  </td>
+        {loading && keys.length === 0 ? (
+          <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+            <Loader2 size={18} className="animate-spin" />
+            <span className="text-sm">Loading keys…</span>
+          </div>
+        ) : keys.length === 0 ? (
+          <div className="py-16 text-center">
+            <Key size={32} className="mx-auto text-muted-foreground mb-3 opacity-30" />
+            <p className="text-sm font-medium text-muted-foreground">No API keys yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Generate your first key to start using the Mesurado API.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  {['Label', 'Key Preview', 'Created', 'Status', 'Actions'].map(h => (
+                    <th key={h} className="px-5 py-3 text-left text-xs font-bold text-muted-foreground uppercase tracking-wider">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {keys.map(key => (
+                  <tr key={key.$id} className="border-b border-border last:border-0 hover:bg-muted/20 transition">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <Key size={14} className="text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm font-semibold text-foreground">{key.label}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded">
+                          {maskKeyPrefix(key.key_prefix)}
+                        </code>
+                        <button onClick={() => copyToClipboard(key.key_prefix, key.$id)}
+                          className="text-muted-foreground hover:text-foreground transition">
+                          {copied === key.$id ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{formatDate(key.created_at)}</td>
+                    <td className="px-5 py-4">
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${key.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>
+                        {key.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <button onClick={() => deleteKey(key.$id)} disabled={!!deleting}
+                        className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-medium transition disabled:opacity-50">
+                        {deleting === key.$id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                        {deleting === key.$id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
+      {/* Create Key Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}
           onClick={e => e.target === e.currentTarget && closeModal()}>

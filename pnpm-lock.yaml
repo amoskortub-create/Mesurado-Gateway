@@ -239,6 +239,10 @@ importers:
         version: 3.1.0
 
   artifacts/mesurado-dashboard:
+    dependencies:
+      appwrite:
+        specifier: ^26.1.0
+        version: 26.1.0
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -1753,6 +1757,10 @@ packages:
 
   append-field@1.0.0:
     resolution: {integrity: sha512-klpgFSWLW1ZEs8svjfb7g4qWY0YS5imI82dTg+QahUvJ8YqAY0P10Uk8tTyh9ZGuYEZEMaeJYCF5BFuX552hsw==}
+
+  appwrite@26.1.0:
+    resolution: {integrity: sha512-BLcSz1/F83V4W0mHAW3SO9kahVfpqStIDI2+m0N0m2UfxIJl7XU5KW/EhPoek8qje+6JPtf3VWoRaPq4k8L86g==}
+    engines: {node: '>=18.0.0'}
 
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
@@ -4486,6 +4494,10 @@ snapshots:
   ansi-regex@5.0.1: {}
 
   append-field@1.0.0: {}
+
+  appwrite@26.1.0:
+    dependencies:
+      json-bigint: 1.0.0
 
   argparse@2.0.1: {}
 
