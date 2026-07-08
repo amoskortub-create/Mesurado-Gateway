@@ -24,7 +24,7 @@ Other useful commands:
 | `MESURADO_MASTER_TOKEN` | secret | Shared auth token for the AI engine — already set |
 | `MESURADO_CORE_URL` | env var | AI inference server base URL — set to `https://ai.mediatechliberia.online` |
 | `APPWRITE_ENDPOINT` | env var | Appwrite server URL — default `https://mediatechliberia.online/v1` |
-| `APPWRITE_PROJECT_ID` | env var | Appwrite project ID — **needs to be set** |
+| `APPWRITE_PROJECT_ID` | env var | Appwrite project ID — set to `mesurado01` |
 | `APPWRITE_DATABASE_ID` | env var | Appwrite database ID — default `mesurado` |
 | `DATABASE_URL` | runtime | Postgres connection string — runtime-managed by Replit |
 
