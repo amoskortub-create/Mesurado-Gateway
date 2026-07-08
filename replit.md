@@ -2,6 +2,20 @@
 
 An AI gateway and user dashboard for the Mesurado platform — lets users chat with the Mesurado LLM engine, manage API keys, track token usage, and handle payments.
 
+## First-time setup (after import or fresh clone)
+
+```sh
+pnpm install          # install all workspace dependencies
+```
+
+Then start both workflows from the Replit UI (or via shell):
+- **API Server** — `artifacts/api-server: API Server`
+- **Dashboard** — `artifacts/mesurado-dashboard: web`
+
+The dashboard will be available at the Replit preview URL. The API server listens on port 8080. Both workflows are pre-configured in this workspace.
+
+> **Note:** The `.migration-backup/` directory contains a pre-migration snapshot of this project. Those workflows are intentionally stopped — do not start them.
+
 ## Run & Operate
 
 | Service | Command | Port |
