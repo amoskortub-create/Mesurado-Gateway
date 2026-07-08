@@ -1,3 +1,4 @@
 - [Mesurado mock-vs-real split](mesurado-mock-split.md) — all mock deleted; dual-session auth (HMAC cookie + Appwrite browser session); real-time via client.subscribe(); playground uses flat snake_case body.
 - [Mesurado artifact layout](mesurado-artifact-layout.md) — dashboard at artifacts/mesurado-dashboard (port 22802, previewPath /), api-server at artifacts/api-server (port 8080, paths /api + /v1); migration-backup duplicates in .migration-backup/ are stale and unstarted.
 - [Mesurado payments system](mesurado-payments.md) — MTN Mobile Money manual payment flow; Appwrite collections, Storage bucket, admin label, env vars, and immutable business rules.
+- [Mesurado rate-limit + queue system](mesurado-rate-queue.md) — three-layer protection: per-user Redis rate limit, in-memory semaphore queue (max 3 slots / 10 queued / 20s timeout), SSE streaming with pre-charge rollback guarantee.

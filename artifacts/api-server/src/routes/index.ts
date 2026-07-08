@@ -6,6 +6,7 @@ import usageRouter from "./usage.js";
 import playgroundRouter from "./playground.js";
 import paymentsRouter from "./payments.js";
 import adminPaymentsRouter from "./admin-payments.js";
+import adminQueueRouter from "./admin-queue.js";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use("/user", usageRouter);
 router.use("/playground", playgroundRouter);
 router.use("/payments", paymentsRouter);
 router.use("/admin", adminPaymentsRouter);
+router.use("/admin", adminQueueRouter);
 
 export default router;
