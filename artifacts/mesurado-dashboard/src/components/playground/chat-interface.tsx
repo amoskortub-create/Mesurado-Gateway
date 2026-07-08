@@ -4,7 +4,7 @@ import { Send, Loader2, Bot, User, Globe, SlidersHorizontal, AlertTriangle } fro
 import type { PlaygroundSettings } from './settings-panel';
 import { getMockChatResponse, MOCK_USAGE } from '@/lib/mock';
 import { countTokens, calcCost } from '@/lib/utils';
-import { needsSearch, mockSearch, formatSearchContext, countSearchTokens } from '@/lib/search';
+import { needsSearch, mockSearch, formatSearchContext, countSearchTokens, getSearchAiResponse } from '@/lib/search';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -88,7 +88,7 @@ export function ChatInterface({ settings, isPaidUser, onSettingsClick }: ChatInt
     const delay = 400 + Math.random() * 600;
     await new Promise(r => setTimeout(r, delay));
 
-    const aiContent = getMockChatResponse(text, usedSearch);
+    const aiContent = usedSearch ? getSearchAiResponse(text) : getMockChatResponse(text);
     const promptTokens = countTokens(text + (settings.systemPrompt || '') + searchContext);
     const completionTokens = countTokens(aiContent);
     const totalTokens = promptTokens + completionTokens;
