@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { MOCK_USER } from './mock';
+import { recordLogin } from './device-store';
 
 interface AuthState {
   isLoggedIn: boolean;
@@ -8,7 +9,7 @@ interface AuthState {
 }
 
 interface AuthCtx extends AuthState {
-  login: (email: string) => void;
+  login: (email: string, name?: string) => void;
   logout: () => void;
 }
 
@@ -27,8 +28,15 @@ function loadStored(): AuthState {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(loadStored);
 
-  function login(email: string) {
-    const next: AuthState = { isLoggedIn: true, email: email || MOCK_USER.email, name: MOCK_USER.name };
+  function login(email: string, name?: string) {
+    // Only pass name when explicitly provided — never fall back to MOCK_USER.name
+    // so existing stored account names are not overwritten on plain sign-in.
+    const account = recordLogin(email, name ?? '');
+    const next: AuthState = {
+      isLoggedIn: true,
+      email: email || MOCK_USER.email,
+      name: account.name || MOCK_USER.name,
+    };
     setState(next);
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch { /* ignore */ }
   }
