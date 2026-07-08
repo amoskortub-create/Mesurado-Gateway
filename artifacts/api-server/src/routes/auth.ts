@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type IRouter } from 'express';
 import { z } from 'zod/v4';
-import { createAdminClient, createAuthClient, DEFAULT_PREFS } from '../lib/appwrite.js';
+import { createAdminClient, createAuthClient, DEFAULT_PREFS, isAdminUser } from '../lib/appwrite.js';
 import { signToken, getSession, SESSION_COOKIE } from '../lib/auth.js';
 import { ID } from 'node-appwrite';
 
@@ -40,7 +40,8 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const { users } = createAdminClient();
     const user = await users.get(userId);
-    res.json({ success: true, userId, email, name: user.name });
+    const role = Array.isArray(user.labels) && user.labels.includes('Administrator') ? 'Administrator' : 'user';
+    res.json({ success: true, userId, email, name: user.name, role });
   } catch (err) {
     req.log.error({ err }, '[POST /api/auth/login]');
     res.status(500).json({ error: 'Login failed' });
@@ -78,7 +79,7 @@ router.post('/signup', async (req: Request, res: Response) => {
     await users.updatePrefs(user.$id, DEFAULT_PREFS);
     const token = await signToken(user.$id, email);
     res.cookie(SESSION_COOKIE, token, COOKIE_OPTS);
-    res.json({ success: true, userId: user.$id, email: user.email, name: user.name });
+    res.json({ success: true, userId: user.$id, email: user.email, name: user.name, role: 'user' });
   } catch (err) {
     req.log.error({ err }, '[POST /api/auth/signup]');
     res.status(500).json({ error: 'Signup failed' });
@@ -100,6 +101,23 @@ router.get('/me', async (req: Request, res: Response) => {
     return;
   }
   res.json({ userId: session.userId, email: session.email });
+});
+
+// GET /api/auth/role — returns the user's role, used by the frontend to conditionally show Admin menu
+router.get('/role', async (req: Request, res: Response) => {
+  const token = req.cookies?.[SESSION_COOKIE];
+  const session = await getSession(token);
+  if (!session) {
+    res.json({ role: 'guest' });
+    return;
+  }
+
+  try {
+    const admin = await isAdminUser(session.userId);
+    res.json({ role: admin ? 'Administrator' : 'user' });
+  } catch {
+    res.json({ role: 'user' });
+  }
 });
 
 export default router;

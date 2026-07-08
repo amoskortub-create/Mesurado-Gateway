@@ -1,4 +1,5 @@
-import { CreditCard, Zap, TrendingUp, CheckCircle2, XCircle, Globe } from 'lucide-react';
+import { CreditCard, Zap, TrendingUp, CheckCircle2, XCircle, Globe, Plus } from 'lucide-react';
+import { Link } from 'wouter';
 import { MOCK_USAGE } from '@/lib/mock';
 import { formatNumber, COST_PER_TOKEN } from '@/lib/utils';
 
@@ -154,35 +155,28 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Upgrade / Add funds CTA */}
-      {!isPaidUser && (
-        <div className="rounded-2xl p-4 md:p-5 border" style={{ background: 'hsl(217 72% 47% / 0.05)', borderColor: 'hsl(217 72% 47% / 0.25)' }}>
-          <div className="flex items-center gap-2 mb-1">
-            <Globe size={15} style={{ color: 'hsl(217 72% 47%)' }} />
-            <p className="text-sm font-bold text-foreground">Unlock Live Web Search</p>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            Upgrade to Pay-As-You-Go for real-time web results injected into every query — Liberian news, exchange rates, prices, and more. Billed at $0.75 / 1M tokens, no monthly commitment.
+      {/* Add Funds / Upgrade CTA */}
+      <div className="rounded-2xl p-4 md:p-5 border" style={{ background: 'hsl(217 72% 47% / 0.05)', borderColor: 'hsl(217 72% 47% / 0.25)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          {isPaidUser
+            ? <Plus size={15} style={{ color: 'hsl(217 72% 47%)' }} />
+            : <Globe size={15} style={{ color: 'hsl(217 72% 47%)' }} />}
+          <p className="text-sm font-bold text-foreground">
+            {isPaidUser ? 'Add Funds via MTN Mobile Money' : 'Upgrade to Pay-As-You-Go'}
           </p>
-          <button className="px-4 md:px-5 py-2.5 rounded-xl text-sm font-bold text-white transition hover:opacity-90"
-            style={{ background: 'hsl(217 72% 47%)' }}
-            onClick={() => alert('Payment integration coming in the real build — this is a prototype.')}>
-            Upgrade to Pay-As-You-Go
-          </button>
         </div>
-      )}
-
-      {isPaidUser && (
-        <div className="rounded-2xl p-4 md:p-5 border" style={{ background: 'hsl(217 72% 47% / 0.05)', borderColor: 'hsl(217 72% 47% / 0.25)' }}>
-          <p className="text-sm font-bold text-foreground mb-1">Add Funds</p>
-          <p className="text-xs text-muted-foreground mb-3">Top up your balance. $0.75 per 1,000,000 tokens. Search tokens count toward your normal balance.</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          {isPaidUser
+            ? 'Top up your token balance using MTN Mobile Money. $0.75 per 1,000,000 tokens. Amounts in USD.'
+            : 'Upgrade to Pay-As-You-Go for real-time web results, multiple API keys, and unlimited token top-ups via MTN Mobile Money.'}
+        </p>
+        <Link href="/add-funds">
           <button className="px-4 md:px-5 py-2.5 rounded-xl text-sm font-bold text-white transition hover:opacity-90"
-            style={{ background: 'hsl(217 72% 47%)' }}
-            onClick={() => alert('Payment integration coming in the real build — this is a prototype.')}>
-            Add Funds (coming soon)
+            style={{ background: 'hsl(217 72% 47%)' }}>
+            {isPaidUser ? 'Add Funds' : 'Upgrade — Add Funds'}
           </button>
-        </div>
-      )}
+        </Link>
+      </div>
     </div>
   );
 }

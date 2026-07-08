@@ -1,12 +1,14 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Terminal, Key, BarChart3, CreditCard, Zap, Activity, X } from 'lucide-react';
+import { LayoutDashboard, Terminal, Key, BarChart3, CreditCard, Zap, Activity, X, Wallet, ShieldCheck } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { href: '/overview', label: 'Overview', icon: LayoutDashboard },
   { href: '/playground', label: 'Playground', icon: Terminal },
   { href: '/api-keys', label: 'API Keys', icon: Key },
   { href: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
   { href: '/billing', label: 'Billing', icon: CreditCard },
+  { href: '/add-funds', label: 'Add Funds', icon: Wallet },
 ];
 
 interface SidebarProps {
@@ -16,6 +18,11 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const [pathname] = useLocation();
+  const { isAdmin } = useAuth();
+
+  const navItems = isAdmin
+    ? [...BASE_NAV_ITEMS, { href: '/admin', label: 'Admin', icon: ShieldCheck }]
+    : BASE_NAV_ITEMS;
 
   return (
     <>
@@ -32,7 +39,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         className={[
           'fixed inset-y-0 left-0 z-40 w-64 flex-shrink-0 flex flex-col h-screen border-r',
           'transition-transform duration-300 ease-in-out',
-          // On mobile: slide in/out. On md+: always visible, static position.
           'md:relative md:translate-x-0 md:z-auto',
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         ].join(' ')}
@@ -57,7 +63,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               </div>
             </div>
           </div>
-          {/* Close button — mobile only */}
           <button
             onClick={onClose}
             className="md:hidden flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg transition"
@@ -83,8 +88,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <p className="px-3 py-1 text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'hsl(213 27% 55%)' }}>
             Main Menu
           </p>
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
+            const isAdminItem = href === '/admin';
             return (
               <Link
                 key={href}
@@ -93,9 +99,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 style={
                   isActive
                     ? {
-                        borderLeft: '3px solid hsl(var(--sidebar-primary))',
+                        borderLeft: `3px solid ${isAdminItem ? 'hsl(142 76% 45%)' : 'hsl(var(--sidebar-primary))'}`,
                         paddingLeft: 'calc(0.75rem - 3px)',
-                        color: 'hsl(var(--sidebar-primary))',
+                        color: isAdminItem ? 'hsl(142 76% 45%)' : 'hsl(var(--sidebar-primary))',
                         background: 'hsl(var(--sidebar-accent))',
                       }
                     : {}
@@ -104,9 +110,18 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 <Icon
                   size={17}
                   className="nav-icon flex-shrink-0 transition-colors"
-                  style={{ color: isActive ? 'hsl(var(--sidebar-primary))' : 'hsl(213 27% 70%)' }}
+                  style={{
+                    color: isActive
+                      ? (isAdminItem ? 'hsl(142 76% 45%)' : 'hsl(var(--sidebar-primary))')
+                      : (isAdminItem ? 'hsl(142 76% 55%)' : 'hsl(213 27% 70%)'),
+                  }}
                 />
                 <span className={isActive ? 'font-semibold' : ''}>{label}</span>
+                {isAdminItem && !isActive && (
+                  <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'hsl(142 76% 45% / 0.15)', color: 'hsl(142 76% 40%)' }}>
+                    Admin
+                  </span>
+                )}
               </Link>
             );
           })}

@@ -11,6 +11,8 @@ import AnalyticsPage from '@/pages/analytics';
 import ApiKeysPage from '@/pages/api-keys';
 import BillingPage from '@/pages/billing';
 import PlaygroundPage from '@/pages/playground';
+import AddFundsPage from '@/pages/add-funds';
+import AdminPaymentsPage from '@/pages/admin-payments';
 import NotFound from '@/pages/not-found';
 import { DashboardLayout } from '@/components/dashboard/layout';
 
@@ -23,6 +25,21 @@ function RootRedirect() {
     setLocation(isLoggedIn ? '/overview' : '/login');
   }, [isLoggedIn, setLocation]);
   return null;
+}
+
+function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { isLoggedIn, isAdmin } = useAuth();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    if (!isLoggedIn) { setLocation('/login'); return; }
+    // isAdmin starts false, give the role fetch a moment before redirecting
+    const t = setTimeout(() => {
+      if (!isAdmin) setLocation('/overview');
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [isLoggedIn, isAdmin, setLocation]);
+  if (!isLoggedIn || !isAdmin) return null;
+  return <>{children}</>;
 }
 
 function Router() {
@@ -42,8 +59,16 @@ function Router() {
       <Route path="/billing">
         <DashboardLayout><BillingPage /></DashboardLayout>
       </Route>
+      <Route path="/add-funds">
+        <DashboardLayout><AddFundsPage /></DashboardLayout>
+      </Route>
       <Route path="/playground">
         <DashboardLayout noPadding><PlaygroundPage /></DashboardLayout>
+      </Route>
+      <Route path="/admin">
+        <DashboardLayout>
+          <AdminGuard><AdminPaymentsPage /></AdminGuard>
+        </DashboardLayout>
       </Route>
       <Route path="/" component={RootRedirect} />
       <Route component={NotFound} />
