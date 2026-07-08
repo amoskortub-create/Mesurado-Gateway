@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import LoginPage from '@/pages/login';
 import SignupPage from '@/pages/signup';
@@ -30,21 +30,27 @@ function RootRedirect() {
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isAdmin } = useAuth();
   const [, setLocation] = useLocation();
+  const [adminChecked, setAdminChecked] = useState(false);
+
   useEffect(() => {
     if (!isLoggedIn) { setLocation('/login'); return; }
-    // isAdmin starts false, give the role fetch a moment before redirecting
+    // Give the role fetch a moment, then redirect if not admin
     const t = setTimeout(() => {
+      setAdminChecked(true);
       if (!isAdmin) setLocation('/overview');
     }, 1500);
     return () => clearTimeout(t);
   }, [isLoggedIn, isAdmin, setLocation]);
-  if (!isLoggedIn || !isAdmin) return null;
+
+  // Don't render admin content until we've confirmed admin status
+  if (!isLoggedIn || !adminChecked || !isAdmin) return null;
   return <>{children}</>;
 }
 
 function Router() {
   return (
     <Switch>
+      <Route path="/" component={RootRedirect} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/overview">
@@ -59,18 +65,17 @@ function Router() {
       <Route path="/billing">
         <DashboardLayout><BillingPage /></DashboardLayout>
       </Route>
-      <Route path="/add-funds">
-        <DashboardLayout><AddFundsPage /></DashboardLayout>
-      </Route>
       <Route path="/playground">
         <DashboardLayout noPadding><PlaygroundPage /></DashboardLayout>
       </Route>
-      <Route path="/admin">
-        <DashboardLayout>
-          <AdminGuard><AdminPaymentsPage /></AdminGuard>
-        </DashboardLayout>
+      <Route path="/billing/add-funds">
+        <DashboardLayout><AddFundsPage /></DashboardLayout>
       </Route>
-      <Route path="/" component={RootRedirect} />
+      <Route path="/admin/payments">
+        <AdminGuard>
+          <DashboardLayout><AdminPaymentsPage /></DashboardLayout>
+        </AdminGuard>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

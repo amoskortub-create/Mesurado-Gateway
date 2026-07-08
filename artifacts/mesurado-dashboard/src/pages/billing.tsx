@@ -170,7 +170,7 @@ export default function BillingPage() {
             ? 'Top up your token balance using MTN Mobile Money. $0.75 per 1,000,000 tokens. Amounts in USD.'
             : 'Upgrade to Pay-As-You-Go for real-time web results, multiple API keys, and unlimited token top-ups via MTN Mobile Money.'}
         </p>
-        <Link href="/add-funds">
+        <Link href="/billing/add-funds">
           <button className="px-4 md:px-5 py-2.5 rounded-xl text-sm font-bold text-white transition hover:opacity-90"
             style={{ background: 'hsl(217 72% 47%)' }}>
             {isPaidUser ? 'Add Funds' : 'Upgrade — Add Funds'}

@@ -8,7 +8,7 @@ const BASE_NAV_ITEMS = [
   { href: '/api-keys', label: 'API Keys', icon: Key },
   { href: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
   { href: '/billing', label: 'Billing', icon: CreditCard },
-  { href: '/add-funds', label: 'Add Funds', icon: Wallet },
+  { href: '/billing/add-funds', label: 'Add Funds', icon: Wallet },
 ];
 
 interface SidebarProps {
@@ -21,7 +21,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { isAdmin } = useAuth();
 
   const navItems = isAdmin
-    ? [...BASE_NAV_ITEMS, { href: '/admin', label: 'Admin', icon: ShieldCheck }]
+    ? [...BASE_NAV_ITEMS, { href: '/admin/payments', label: 'Admin', icon: ShieldCheck }]
     : BASE_NAV_ITEMS;
 
   return (
@@ -90,7 +90,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           </p>
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
-            const isAdminItem = href === '/admin';
+            const isAdminItem = href === '/admin/payments';
             return (
               <Link
                 key={href}
