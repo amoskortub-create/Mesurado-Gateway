@@ -1,24 +1,33 @@
 ---
-name: Mesurado mock vs real split
-description: How the Mesurado AI Dashboard prototype separates mock mode from the real backend.
+name: Mesurado mock-vs-real split
+description: All mock data is gone — the app is fully connected to Appwrite. Documents the auth architecture and real-time pattern.
 ---
 
-# Mock / Real Split Architecture
+## Status
+All mock data is deleted. The app is live on real Appwrite.
 
-**Why:** User requested a fully mock prototype with no backend and no real auth so they could verify all UI without setting up Appwrite or the LLM engine.
+## Deleted files
+- `src/lib/mock.ts` — MOCK_USER, MOCK_USAGE, MOCK_API_KEYS, MOCK_USAGE_LOGS, getMockChatResponse
+- `src/lib/device-store.ts` — fake Liberian IP, localStorage account registry
+- `src/lib/search.ts` — mock search, mockSearch(), getSearchAiResponse()
 
-**How to apply:** When switching from prototype to real backend, only these files need to change:
+## New files
+- `src/lib/appwrite.ts` — Appwrite Client, Account, Databases; reads VITE_APPWRITE_ENDPOINT / VITE_APPWRITE_PROJECT_ID
+- `src/hooks/use-usage.ts` — fetches GET /api/user/usage, subscribes to Appwrite real-time on usage_logs collection
 
-| File | Current (mock) | Real build |
-|------|---------------|------------|
-| `src/lib/auth-context.tsx` | sessionStorage flag, any creds work | Replace login/logout with real `/api/auth/*` fetch calls |
-| `src/lib/mock.ts` | Static mock data + canned chat responses | Delete or gate behind `import.meta.env.DEV` |
-| `src/pages/overview.tsx` | Imports directly from mock.ts | Replace with `useQuery(() => fetch('/api/user/usage'))` |
-| `src/pages/analytics.tsx` | Same | Same |
-| `src/pages/api-keys.tsx` | Local useState over mock keys | Replace with react-query + `/api/keys/*` |
-| `src/pages/billing.tsx` | Same | Same |
-| `src/components/playground/chat-interface.tsx` | Calls getMockChatResponse() | Replace with `fetch('/api/playground/chat', ...)` |
+## Auth architecture (dual-session)
+Login calls BOTH:
+1. `POST /api/auth/login` (api-server) → sets HMAC cookie `mesurado_session` (30-day)
+2. `account.createEmailPasswordSession()` (Appwrite SDK) → Appwrite browser session cookie (for real-time subscriptions)
 
-All dashboard page components receive data as props or read from context — no backend URLs are hard-coded outside of the component fetch calls, making the swap clean.
+On mount, auth-context ALWAYS probes `GET /api/auth/me` to hydrate/clear state — does not rely solely on sessionStorage.
+Logout clears both the HMAC cookie and Appwrite session.
 
-**Express routes are already written** in `artifacts/api-server/src/routes/` and just need Appwrite env vars to go live.
+## Real-time pattern
+Both `use-usage.ts` and `api-keys.tsx` subscribe to Appwrite collections and call `refetch()` on events. Subscriptions are guarded (try/catch) and cleaned up on unmount. If the Appwrite session is missing, subscriptions degrade gracefully (polling only).
+
+## Playground API contract
+Frontend sends: `{ messages, temperature, max_tokens, system_prompt }` (snake_case, top-level).
+Server validates exactly these fields via zod — do NOT nest under `settings`.
+
+**Why:** Code review caught a contract mismatch where the frontend was sending `{ settings: { temperature, maxTokens } }` while the server expected flat fields. Fix applied.
