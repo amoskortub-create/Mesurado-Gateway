@@ -661,6 +661,10 @@ importers:
         version: 0.31.10
 
   scripts:
+    dependencies:
+      node-appwrite:
+        specifier: ^26.2.0
+        version: 26.2.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
