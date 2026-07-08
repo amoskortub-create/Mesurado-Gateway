@@ -13,8 +13,9 @@ const FREE_FEATURES = [
   { label: 'Full API access via /v1/chat/completions', included: true },
   { label: 'Playground access for testing', included: true },
   { label: 'Usage analytics & logs', included: true },
-  { label: 'Multiple API key management', included: true },
+  { label: '1 API key only', included: true },
   { label: 'OpenAI-compatible response format', included: true },
+  { label: 'Multiple API key management', included: false },
   { label: 'Live web search', included: false },
 ];
 
