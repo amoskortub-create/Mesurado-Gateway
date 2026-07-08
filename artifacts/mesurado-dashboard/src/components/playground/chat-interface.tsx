@@ -104,6 +104,7 @@ export function ChatInterface({ settings, isPaidUser, tokensRemaining: initialTo
           messages: apiMessages,
           temperature: settings.temperature,
           max_tokens: settings.maxTokens,
+          live_search: isPaidUser && settings.liveSearch,
         }),
       });
 
@@ -131,7 +132,7 @@ export function ChatInterface({ settings, isPaidUser, tokensRemaining: initialTo
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: data.content,
-        searchUsed: data.searchUsed ?? (queryNeedsSearch && searchActive),
+        searchUsed: data.searchUsed ?? false,
         metadata: { promptTokens, completionTokens, costDebit },
       }]);
     } catch (err) {
