@@ -1,0 +1,1 @@
+- [Mesurado mock-vs-real split](mesurado-mock-split.md) — all mock data/auth lives in src/lib/mock.ts + src/lib/auth-context.tsx; swap those two files for real API calls when backend is ready.
