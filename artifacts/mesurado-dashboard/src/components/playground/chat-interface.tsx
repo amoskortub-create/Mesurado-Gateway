@@ -16,7 +16,6 @@ function needsSearch(q: string): boolean {
   return SEARCH_KEYWORDS.some(kw => lower.includes(kw));
 }
 
-const SYSTEM_PROMPT = 'You are Mesurado AI, built by Media Tech Liberia. You are helpful, accurate, and concise.';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -93,7 +92,6 @@ export function ChatInterface({ settings, isPaidUser, tokensRemaining: initialTo
     try {
       // Build the messages array for the API
       const apiMessages = [
-        { role: 'system' as const, content: SYSTEM_PROMPT },
         ...messages.filter(m => !m.searchUnavailable).map(m => ({ role: m.role, content: m.content })),
         { role: 'user' as const, content: text },
       ];
@@ -106,7 +104,6 @@ export function ChatInterface({ settings, isPaidUser, tokensRemaining: initialTo
           messages: apiMessages,
           temperature: settings.temperature,
           max_tokens: settings.maxTokens,
-          system_prompt: SYSTEM_PROMPT,
         }),
       });
 
@@ -124,7 +121,7 @@ export function ChatInterface({ settings, isPaidUser, tokensRemaining: initialTo
         searchUsed?: boolean;
       };
 
-      const promptTokens = data.promptTokens ?? countTokens(text + SYSTEM_PROMPT);
+      const promptTokens = data.promptTokens ?? countTokens(text);
       const completionTokens = data.completionTokens ?? countTokens(data.content);
       const costDebit = data.costDebit ?? calcCost(promptTokens + completionTokens);
 
