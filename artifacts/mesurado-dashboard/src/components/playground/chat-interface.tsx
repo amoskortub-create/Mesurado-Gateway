@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'wouter';
-import { Send, Loader2, Bot, User, Globe, SlidersHorizontal, AlertTriangle } from 'lucide-react';
+import { Send, Loader2, Globe, Settings2, ArrowUp, AlertCircle } from 'lucide-react';
 import type { PlaygroundSettings } from './settings-panel';
 import { getMockChatResponse, MOCK_USAGE } from '@/lib/mock';
 import { countTokens, calcCost } from '@/lib/utils';
 import { needsSearch, mockSearch, formatSearchContext, countSearchTokens, getSearchAiResponse } from '@/lib/search';
+
+const SYSTEM_PROMPT = 'You are Mesurado AI, built by Media Tech Liberia. You are helpful, accurate, and concise.';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -22,10 +23,18 @@ interface Message {
 interface ChatInterfaceProps {
   settings: PlaygroundSettings;
   isPaidUser: boolean;
-  onSettingsClick?: () => void;
+  settingsOpen: boolean;
+  onSettingsToggle: () => void;
 }
 
-export function ChatInterface({ settings, isPaidUser, onSettingsClick }: ChatInterfaceProps) {
+const SUGGESTIONS = [
+  { icon: '💱', text: 'What is the current USD to LRD rate?' },
+  { icon: '📰', text: 'Latest news from Liberia today' },
+  { icon: '🐍', text: 'Show me a Python API example' },
+  { icon: '🤖', text: 'What is Mesurado AI?' },
+];
+
+export function ChatInterface({ settings, isPaidUser, settingsOpen, onSettingsToggle }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,6 +42,8 @@ export function ChatInterface({ settings, isPaidUser, onSettingsClick }: ChatInt
   const [searchesUsed, setSearchesUsed] = useState(MOCK_USAGE.searchesUsedThisMonth);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const searchActive = isPaidUser && settings.liveSearch;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -42,31 +53,26 @@ export function ChatInterface({ settings, isPaidUser, onSettingsClick }: ChatInt
     const text = input.trim();
     if (!text || loading) return;
 
-    const userMsg: Message = { role: 'user', content: text };
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
     setInput('');
     setLoading(true);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     const queryNeedsSearch = needsSearch(text);
 
-    // ── Free user + search needed → upgrade gate ─────────────────────────────
+    // Free user + search needed → upgrade gate
     if (queryNeedsSearch && !isPaidUser) {
-      await new Promise(r => setTimeout(r, 400));
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          content:
-            'This query requires live web search, which is available on the **Pay-As-You-Go** plan.\n\nUpgrade to access current information from the web — including news, prices, exchange rates, weather, and more.\n\n_Your token balance is unaffected._',
-          searchUnavailable: true,
-        },
-      ]);
+      await new Promise(r => setTimeout(r, 500));
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'This query requires live web search, available on the **Pay-As-You-Go** plan.\n\nUpgrade to access real-time information — exchange rates, Liberian news, crypto prices, weather, and more.\n\n_No tokens have been deducted._',
+        searchUnavailable: true,
+      }]);
       setLoading(false);
       return;
     }
 
-    // ── Search enabled (paid user + liveSearch on + query needs it) ──────────
+    // Search execution (paid + enabled + triggered)
     let searchContext = '';
     let searchTokens = 0;
     let usedSearch = false;
@@ -78,32 +84,23 @@ export function ChatInterface({ settings, isPaidUser, onSettingsClick }: ChatInt
         searchTokens = countSearchTokens(searchContext);
         usedSearch = true;
         setSearchesUsed(n => n + 1);
-      } catch {
-        // Search failed silently — proceed without context
-        searchContext = '';
-      }
+      } catch { /* fail silently, proceed without search */ }
     }
 
-    // Simulate remaining AI delay
-    const delay = 400 + Math.random() * 600;
-    await new Promise(r => setTimeout(r, delay));
+    await new Promise(r => setTimeout(r, 400 + Math.random() * 600));
 
     const aiContent = usedSearch ? getSearchAiResponse(text) : getMockChatResponse(text);
-    const promptTokens = countTokens(text + (settings.systemPrompt || '') + searchContext);
+    const promptTokens = countTokens(text + SYSTEM_PROMPT + searchContext);
     const completionTokens = countTokens(aiContent);
-    const totalTokens = promptTokens + completionTokens;
-    const costDebit = calcCost(totalTokens);
+    const costDebit = calcCost(promptTokens + completionTokens);
 
-    setMessages(prev => [
-      ...prev,
-      {
-        role: 'assistant',
-        content: aiContent,
-        searchUsed: usedSearch,
-        metadata: { promptTokens, completionTokens, searchTokens, costDebit },
-      },
-    ]);
-    setTokensRemaining(prev => Math.max(0, prev - totalTokens));
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: aiContent,
+      searchUsed: usedSearch,
+      metadata: { promptTokens, completionTokens, searchTokens, costDebit },
+    }]);
+    setTokensRemaining(prev => Math.max(0, prev - promptTokens - completionTokens));
     setLoading(false);
   }
 
@@ -114,208 +111,269 @@ export function ChatInterface({ settings, isPaidUser, onSettingsClick }: ChatInt
   function autoResize(e: React.ChangeEvent<HTMLTextAreaElement>) {
     setInput(e.target.value);
     e.target.style.height = 'auto';
-    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
   }
 
-  const SUGGESTIONS = [
-    'What is Mesurado AI?',
-    'Show me a Python API example',
-    'What is the current USD to LRD rate?',
-    'Latest news from Liberia today',
-  ];
-
-  const searchActive = isPaidUser && settings.liveSearch;
+  const isSearchQuery = input.trim().length > 0 && needsSearch(input);
 
   return (
-    <div className="h-full bg-card border border-card-border rounded-2xl flex flex-col overflow-hidden shadow-sm">
-      {/* Header */}
-      <div className="px-3 md:px-5 py-3 md:py-3.5 border-b border-border flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2 md:gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-extrabold flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%), hsl(217 72% 47%))' }}>M</div>
+    <div className="h-full flex flex-col bg-card overflow-hidden">
+
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-white font-extrabold text-sm shadow-md"
+            style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(217 72% 47%) 100%)' }}
+          >M</div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground leading-tight truncate">mesurado-1.0-lite</p>
-            <p className="text-xs text-muted-foreground hidden sm:block">Playground — mock mode</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-bold text-foreground">mesurado-1.0-lite</span>
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0"
+                style={{ background: 'hsl(142 76% 45% / 0.1)', color: 'hsl(142 76% 38%)' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground truncate">
+              {searchActive ? '🌐 Live search on' : 'Mesurado Engine Core'}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
-          {/* Live search status badge */}
-          {searchActive ? (
-            <span className="hidden sm:flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: 'hsl(142 76% 45% / 0.12)', color: 'hsl(142 76% 38%)' }}>
-              <Globe size={10} />
-              Search On
-            </span>
-          ) : isPaidUser ? (
-            <span className="hidden sm:flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-              <Globe size={10} />
-              Search Off
-            </span>
-          ) : null}
-
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Token counter */}
-          <span className="text-xs font-semibold px-2 py-0.5 rounded-full tabular-nums"
-            style={{ background: 'hsl(217 72% 47% / 0.1)', color: 'hsl(217 72% 47%)' }}>
-            <span className="hidden sm:inline">{tokensRemaining.toLocaleString()} left</span>
-            <span className="sm:hidden">{(tokensRemaining / 1000).toFixed(0)}k</span>
-          </span>
+          <div className="hidden sm:flex flex-col items-end">
+            <span className="text-sm font-bold tabular-nums text-foreground">
+              {(tokensRemaining / 1000).toFixed(0)}k
+            </span>
+            <span className="text-xs text-muted-foreground">tokens left</span>
+          </div>
 
-          {/* Mobile settings button */}
-          {onSettingsClick && (
-            <button
-              onClick={onSettingsClick}
-              className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition"
-              aria-label="Open settings"
-            >
-              <SlidersHorizontal size={16} />
-            </button>
-          )}
+          {/* Settings toggle */}
+          <button
+            onClick={onSettingsToggle}
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition border ${
+              settingsOpen
+                ? 'text-white border-transparent shadow-sm'
+                : 'text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+            }`}
+            style={settingsOpen ? { background: 'hsl(0 72% 51%)' } : {}}
+            title="Model settings"
+          >
+            <Settings2 size={16} />
+          </button>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4">
-        {messages.length === 0 && !loading && (
-          <div className="h-full flex flex-col items-center justify-center gap-5 md:gap-6">
-            <div className="text-center max-w-xs px-4">
-              <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center text-white text-xl md:text-2xl font-extrabold mx-auto mb-3 md:mb-4 shadow-lg"
-                style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(217 72% 47%) 100%)' }}>M</div>
-              <p className="text-sm md:text-base font-bold text-foreground">Mesurado AI Playground</p>
-              <p className="text-xs md:text-sm text-muted-foreground mt-1.5 leading-relaxed">
+      {/* ── Messages ───────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto">
+        {messages.length === 0 && !loading ? (
+          /* Empty state */
+          <div className="h-full flex flex-col items-center justify-center px-5 py-8 gap-5">
+            {/* Glow orb */}
+            <div className="relative">
+              <div
+                className="absolute inset-0 scale-[2] blur-3xl opacity-20 rounded-full"
+                style={{ background: 'radial-gradient(circle, hsl(0 72% 51%), hsl(217 72% 47%))' }}
+              />
+              <div
+                className="relative w-16 h-16 md:w-20 md:h-20 rounded-2xl md:rounded-3xl flex items-center justify-center text-white text-2xl md:text-3xl font-extrabold shadow-2xl"
+                style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(217 72% 47%) 100%)' }}
+              >M</div>
+            </div>
+
+            <div className="text-center max-w-xs">
+              <h2 className="text-lg md:text-xl font-extrabold text-foreground">What can I help with?</h2>
+              <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
                 {searchActive
-                  ? 'Live search is active. Ask about current events, prices, or news.'
-                  : 'Try a prompt below or adjust settings with the ⚙ button.'}
+                  ? 'Ask about exchange rates, Liberian news, crypto prices, or anything else.'
+                  : 'Ask me about code, analysis, writing, or general knowledge.'}
               </p>
               {searchActive && (
-                <div className="flex items-center justify-center gap-1.5 mt-2">
-                  <Globe size={11} style={{ color: 'hsl(142 76% 45%)' }} />
-                  <span className="text-xs font-medium" style={{ color: 'hsl(142 76% 45%)' }}>
-                    Live web search enabled
+                <div className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-full"
+                  style={{ background: 'hsl(142 76% 45% / 0.1)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-semibold" style={{ color: 'hsl(142 76% 38%)' }}>
+                    Live search active
                   </span>
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2 w-full max-w-sm px-2">
+
+            {/* Suggestion chips */}
+            <div className="grid grid-cols-2 gap-2.5 w-full max-w-sm">
               {SUGGESTIONS.map(s => (
-                <button key={s} onClick={() => { setInput(s); textareaRef.current?.focus(); }}
-                  className="text-left text-xs px-3 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground transition leading-snug">
-                  {s}
+                <button
+                  key={s.text}
+                  onClick={() => { setInput(s.text); textareaRef.current?.focus(); }}
+                  className="text-left p-3.5 rounded-2xl border border-border bg-background hover:bg-muted hover:border-border/80 transition-all group"
+                >
+                  <div className="text-lg mb-1.5">{s.icon}</div>
+                  <p className="text-xs font-semibold text-foreground leading-snug group-hover:text-foreground">{s.text}</p>
                 </button>
               ))}
             </div>
           </div>
-        )}
+        ) : (
+          /* Message list */
+          <div className="p-4 md:p-5 space-y-5">
+            {messages.map((msg, i) => (
+              <div key={i}>
+                {msg.role === 'user' ? (
+                  /* User message — right aligned */
+                  <div className="flex justify-end">
+                    <div className="max-w-[82%] md:max-w-[72%]">
+                      <div
+                        className="px-4 py-3 text-white text-sm leading-relaxed rounded-2xl rounded-tr-sm shadow-sm"
+                        style={{ background: 'linear-gradient(135deg, hsl(222 47% 17%) 0%, hsl(222 47% 22%) 100%)' }}
+                      >
+                        {msg.content}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Assistant message — left aligned */
+                  <div className="flex gap-3">
+                    <div
+                      className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-white text-xs font-extrabold shadow-md mt-0.5"
+                      style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(0 72% 40%) 100%)' }}
+                    >M</div>
 
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-2 md:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white mt-0.5"
-                style={{ background: msg.role === 'user' ? 'hsl(222 47% 20%)' : 'hsl(0 72% 51%)' }}>
-                {msg.role === 'user' ? <User size={13} /> : <Bot size={13} />}
+                    <div className="max-w-[82%] md:max-w-[75%] min-w-0">
+                      {/* Upgrade notice */}
+                      {msg.searchUnavailable && (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-2 text-xs font-semibold"
+                          style={{ background: 'hsl(38 92% 50% / 0.08)', color: 'hsl(38 70% 40%)' }}>
+                          <AlertCircle size={12} />
+                          Live search requires Pay-As-You-Go
+                        </div>
+                      )}
+
+                      {/* Bubble */}
+                      <div
+                        className="px-4 py-3 text-sm leading-relaxed rounded-2xl rounded-tl-sm bg-background border border-border shadow-sm whitespace-pre-wrap"
+                        style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(0 72% 51%)' }}
+                      >
+                        {msg.content}
+                      </div>
+
+                      {/* Search badge */}
+                      {msg.searchUsed && (
+                        <div className="flex items-center gap-1.5 mt-1.5 px-1">
+                          <Globe size={11} style={{ color: 'hsl(142 76% 45%)' }} />
+                          <span className="text-xs font-medium" style={{ color: 'hsl(142 76% 45%)' }}>
+                            Informed by live search
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Token metadata */}
+                      {msg.metadata && (
+                        <div className="flex items-center gap-2 mt-1 px-1 flex-wrap">
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {(msg.metadata.promptTokens + msg.metadata.completionTokens).toLocaleString()} tokens
+                            {msg.metadata.searchTokens > 0 && (
+                              <span className="opacity-60"> · {msg.metadata.searchTokens} search</span>
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground/40">·</span>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            ${msg.metadata.costDebit.toFixed(6)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              {/* Globe badge on assistant avatar when search was used */}
-              {msg.role === 'assistant' && msg.searchUsed && (
-                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
-                  title="Answer informed by live web search"
-                  style={{ background: 'hsl(142 76% 40%)' }}>
-                  <Globe size={8} className="text-white" />
-                </div>
-              )}
-            </div>
+            ))}
 
-            {/* Bubble */}
-            <div className={`flex flex-col gap-1.5 max-w-[82%] md:max-w-[78%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-              {/* Search unavailable warning */}
-              {msg.searchUnavailable && (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium mb-0.5"
-                  style={{ background: 'hsl(38 92% 50% / 0.1)', color: 'hsl(38 70% 40%)' }}>
-                  <AlertTriangle size={11} />
-                  Live search requires Pay-As-You-Go
+            {/* Typing indicator */}
+            {loading && (
+              <div className="flex gap-3">
+                <div
+                  className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-white text-xs font-extrabold shadow-md mt-0.5"
+                  style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(0 72% 40%) 100%)' }}
+                >M</div>
+                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-background border border-border shadow-sm flex items-center gap-2.5">
+                  {searchActive && needsSearch(messages[messages.length - 1]?.content ?? '') ? (
+                    <>
+                      <Globe size={13} className="animate-pulse" style={{ color: 'hsl(142 76% 45%)' }} />
+                      <span className="text-sm text-muted-foreground">Searching the web…</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-sm text-muted-foreground">Thinking…</span>
+                    </>
+                  )}
                 </div>
-              )}
-              <div
-                className={`px-3.5 md:px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? 'text-white rounded-2xl rounded-tr-sm'
-                    : 'rounded-2xl rounded-tl-sm bg-muted text-foreground'
-                }`}
-                style={msg.role === 'user' ? { background: 'hsl(222 47% 20%)' } : {}}>
-                {msg.content}
               </div>
-
-              {/* Search used notice */}
-              {msg.searchUsed && (
-                <div className="flex items-center gap-1 px-1">
-                  <Globe size={10} style={{ color: 'hsl(142 76% 45%)' }} />
-                  <span className="text-xs" style={{ color: 'hsl(142 76% 45%)' }}>
-                    Informed by live search
-                  </span>
-                </div>
-              )}
-
-              {/* Metadata badge */}
-              {msg.metadata && (
-                <div className="flex items-center gap-1.5 px-1 flex-wrap">
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                    style={{ background: 'hsl(217 72% 47% / 0.1)', color: 'hsl(217 72% 47%)' }}>
-                    {(msg.metadata.promptTokens + msg.metadata.completionTokens).toLocaleString()} tokens
-                    {msg.metadata.searchTokens > 0 && (
-                      <span className="opacity-70"> ({msg.metadata.searchTokens} search)</span>
-                    )}
-                  </span>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                    style={{ background: 'hsl(0 72% 51% / 0.08)', color: 'hsl(0 72% 40%)' }}>
-                    ${msg.metadata.costDebit.toFixed(6)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {loading && (
-          <div className="flex gap-2 md:gap-3">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-white mt-0.5"
-              style={{ background: 'hsl(0 72% 51%)' }}><Bot size={13} /></div>
-            <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-muted flex items-center gap-2">
-              <Loader2 size={14} className="animate-spin text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                {needsSearch(input) && isPaidUser && settings.liveSearch ? 'Searching the web…' : 'Thinking…'}
-              </span>
-            </div>
+            )}
+            <div ref={bottomRef} />
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-3 md:p-4 border-t border-border flex-shrink-0">
-        <div className="flex gap-2 items-end">
-          <textarea ref={textareaRef} value={input} onChange={autoResize} onKeyDown={handleKeyDown}
-            disabled={loading} rows={1}
-            className="flex-1 px-3.5 md:px-4 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:border-primary transition disabled:opacity-50"
-            placeholder={searchActive ? 'Ask anything — live search active…' : 'Type a message…'}
-            style={{ minHeight: '42px', maxHeight: '120px' }} />
-          <button onClick={sendMessage} disabled={!input.trim() || loading}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0 transition disabled:opacity-40 hover:opacity-90 active:scale-95 shadow-sm"
-            style={{ background: 'hsl(0 72% 51%)' }}>
-            {loading ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+      {/* ── Input ──────────────────────────────────────────────────────────── */}
+      <div className="p-3 md:p-4 border-t border-border flex-shrink-0" style={{ background: 'hsl(var(--card))' }}>
+        {/* Search trigger preview */}
+        {isSearchQuery && (
+          <div className={`flex items-center gap-1.5 text-xs font-medium mb-2 px-1 ${
+            !isPaidUser ? 'text-amber-600' : 'text-emerald-600'
+          }`}>
+            <Globe size={11} />
+            {isPaidUser && settings.liveSearch
+              ? 'Live search will activate for this query'
+              : isPaidUser
+              ? 'Enable live search in settings for real-time data'
+              : 'Upgrade to Pay-As-You-Go for live search on this query'}
+          </div>
+        )}
+
+        <div className="relative">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={autoResize}
+            onKeyDown={handleKeyDown}
+            disabled={loading}
+            rows={1}
+            placeholder={searchActive ? 'Ask anything — live search active…' : 'Ask me anything…'}
+            className="w-full pr-14 pl-4 py-3.5 rounded-2xl border border-border bg-background text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:border-primary transition-all disabled:opacity-50"
+            style={{ minHeight: '52px', maxHeight: '140px' }}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={!input.trim() || loading}
+            className="absolute right-2 bottom-2 w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-30 hover:opacity-90 active:scale-95 shadow-md"
+            style={{ background: 'hsl(0 72% 51%)' }}
+          >
+            {loading
+              ? <Loader2 size={16} className="animate-spin" />
+              : <ArrowUp size={16} strokeWidth={2.5} />}
           </button>
         </div>
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-xs text-muted-foreground">
-            <span className="hidden sm:inline">Temp: <strong className="text-foreground">{settings.temperature.toFixed(2)}</strong> · Max: <strong className="text-foreground">{settings.maxTokens}</strong> · </span>
-            <Link href="/api-keys" className="underline hover:text-foreground transition">Keys</Link>
-          </p>
-          {searchActive && (
-            <p className="text-xs flex items-center gap-1" style={{ color: 'hsl(142 76% 40%)' }}>
-              <Globe size={10} />
-              <span>{searchesUsed} searches this month</span>
-            </p>
-          )}
+
+        <div className="flex items-center justify-between mt-2 px-0.5">
+          <div className="flex items-center gap-2">
+            {searchActive ? (
+              <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'hsl(142 76% 40%)' }}>
+                <Globe size={10} />
+                Live · {searchesUsed} searches this month
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">⇧ Enter for newline</span>
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {tokensRemaining.toLocaleString()} left
+          </span>
         </div>
       </div>
     </div>

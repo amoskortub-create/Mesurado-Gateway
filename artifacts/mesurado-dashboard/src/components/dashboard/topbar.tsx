@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { LogOut, ChevronDown, Bell, Menu } from 'lucide-react';
+import { LogOut, ChevronDown, Menu } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -31,7 +31,6 @@ export function TopBar({ onMenuClick }: TopBarProps) {
   return (
     <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between px-3 md:px-6 sticky top-0 z-20 flex-shrink-0">
       <div className="flex items-center gap-2 md:gap-3 min-w-0">
-        {/* Hamburger — mobile only */}
         <button
           onClick={onMenuClick}
           className="md:hidden flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition"
@@ -46,11 +45,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
-        <button className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition">
-          <Bell size={17} />
-        </button>
-
+      <div className="flex items-center gap-2 flex-shrink-0">
         <div className="relative">
           <button
             onClick={() => setOpen(o => !o)}

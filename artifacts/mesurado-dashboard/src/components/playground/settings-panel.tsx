@@ -1,8 +1,7 @@
-import { Sliders, Cpu, Globe, X } from 'lucide-react';
+import { X, Globe, Thermometer, Hash, Cpu, Info } from 'lucide-react';
 
 export interface PlaygroundSettings {
   temperature: number;
-  systemPrompt: string;
   maxTokens: number;
   liveSearch: boolean;
 }
@@ -11,10 +10,10 @@ interface SettingsPanelProps {
   settings: PlaygroundSettings;
   onChange: (s: PlaygroundSettings) => void;
   isPaidUser: boolean;
-  onMobileClose?: () => void;
+  onClose?: () => void;
 }
 
-function update<K extends keyof PlaygroundSettings>(
+function set<K extends keyof PlaygroundSettings>(
   settings: PlaygroundSettings,
   onChange: (s: PlaygroundSettings) => void,
   key: K,
@@ -23,132 +22,177 @@ function update<K extends keyof PlaygroundSettings>(
   onChange({ ...settings, [key]: value });
 }
 
-export function SettingsPanel({ settings, onChange, isPaidUser, onMobileClose }: SettingsPanelProps) {
+export function SettingsPanel({ settings, onChange, isPaidUser, onClose }: SettingsPanelProps) {
+  const tempLabel =
+    settings.temperature < 0.3 ? 'Precise' :
+    settings.temperature < 0.6 ? 'Balanced' :
+    settings.temperature < 0.85 ? 'Creative' : 'Wild';
+
   return (
-    <div className="h-full bg-card border border-card-border rounded-2xl flex flex-col overflow-hidden shadow-sm">
-      <div className="px-4 py-3.5 border-b border-border flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <Sliders size={15} className="text-primary flex-shrink-0" />
+    <div className="h-full flex flex-col bg-card overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border flex items-center justify-between flex-shrink-0">
+        <div>
           <h3 className="font-bold text-sm text-foreground">Model Settings</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">mesurado-1.0-lite</p>
         </div>
-        {/* Mobile close */}
-        {onMobileClose && (
+        {onClose && (
           <button
-            onClick={onMobileClose}
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition"
-            aria-label="Close settings"
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition"
           >
             <X size={16} />
           </button>
         )}
       </div>
 
-      <div className="flex-1 p-4 space-y-5 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         {/* Temperature */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-bold text-foreground">Temperature</label>
-            <code className="text-xs font-bold px-2 py-0.5 rounded-md tabular-nums" style={{ background: 'hsl(0 72% 51% / 0.1)', color: 'hsl(0 72% 51%)' }}>
-              {settings.temperature.toFixed(2)}
-            </code>
+        <div className="px-5 py-4 border-b border-border/60">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'hsl(0 72% 51% / 0.1)' }}>
+              <Thermometer size={14} style={{ color: 'hsl(0 72% 51%)' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-foreground">Temperature</p>
+              <p className="text-xs text-muted-foreground">Controls creativity</p>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-sm font-extrabold tabular-nums text-foreground">
+                {settings.temperature.toFixed(2)}
+              </span>
+              <span className="text-xs font-medium" style={{ color: 'hsl(0 72% 51%)' }}>{tempLabel}</span>
+            </div>
           </div>
+
           <input
             type="range" min={0} max={1} step={0.01} value={settings.temperature}
-            onChange={e => update(settings, onChange, 'temperature', parseFloat(e.target.value))}
+            onChange={e => set(settings, onChange, 'temperature', parseFloat(e.target.value))}
             className="w-full h-2 rounded-full appearance-none cursor-pointer"
             style={{ accentColor: 'hsl(0 72% 51%)' }}
           />
           <div className="flex justify-between text-xs text-muted-foreground mt-1.5">
-            <span>Precise</span><span>Creative</span>
+            <span>0 · Precise</span>
+            <span>1 · Wild</span>
           </div>
         </div>
 
-        {/* Live Search toggle */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-1.5">
-              <Globe size={13} style={{ color: isPaidUser ? 'hsl(142 76% 45%)' : 'hsl(215 20% 55%)' }} />
-              <label className="text-xs font-bold text-foreground">Live Search</label>
+        {/* Live Search */}
+        <div className="px-5 py-4 border-b border-border/60">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 flex-1 min-w-0">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                style={{
+                  background: isPaidUser && settings.liveSearch
+                    ? 'hsl(142 76% 45% / 0.12)'
+                    : 'hsl(215 20% 50% / 0.1)',
+                }}>
+                <Globe size={14} style={{
+                  color: isPaidUser && settings.liveSearch
+                    ? 'hsl(142 76% 38%)'
+                    : 'hsl(215 20% 55%)',
+                }} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground">Live Search</p>
+                <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+                  {!isPaidUser
+                    ? 'Pay-As-You-Go only'
+                    : settings.liveSearch
+                    ? 'Web results for time-sensitive queries'
+                    : 'Enable for real-time web results'}
+                </p>
+              </div>
             </div>
-            <div className="relative group">
+
+            {/* Toggle */}
+            <div className="relative group flex-shrink-0 mt-0.5">
               <button
                 role="switch"
-                aria-checked={settings.liveSearch}
+                aria-checked={settings.liveSearch && isPaidUser}
                 disabled={!isPaidUser}
-                onClick={() => isPaidUser && update(settings, onChange, 'liveSearch', !settings.liveSearch)}
-                className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors duration-200 ${
-                  !isPaidUser ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
-                } ${settings.liveSearch && isPaidUser ? '' : 'bg-muted'}`}
-                style={settings.liveSearch && isPaidUser ? { background: 'hsl(142 76% 40%)' } : {}}
+                onClick={() => isPaidUser && set(settings, onChange, 'liveSearch', !settings.liveSearch)}
+                className={`relative inline-flex h-6 w-11 rounded-full transition-colors duration-200 ${
+                  !isPaidUser ? 'opacity-35 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+                style={{
+                  background: settings.liveSearch && isPaidUser
+                    ? 'hsl(142 76% 40%)'
+                    : 'hsl(215 20% 80%)',
+                }}
               >
-                <span
-                  className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white shadow transform transition-transform duration-200 ${
-                    settings.liveSearch && isPaidUser ? 'translate-x-4' : 'translate-x-0.5'
-                  }`}
-                />
+                <span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition-all duration-200 ${
+                  settings.liveSearch && isPaidUser ? 'left-6' : 'left-1'
+                }`} />
               </button>
-              {/* Tooltip for free users */}
               {!isPaidUser && (
-                <div className="absolute right-0 bottom-7 hidden group-hover:block z-50 w-48 px-3 py-2 rounded-xl text-xs text-white shadow-xl"
+                <div className="absolute right-0 bottom-8 hidden group-hover:block z-50 w-44 px-3 py-2 rounded-xl text-xs text-white shadow-xl pointer-events-none"
                   style={{ background: 'hsl(222 47% 12%)' }}>
-                  Upgrade to Pay-As-You-Go to enable live web search
-                  <div className="absolute right-3 -bottom-1.5 w-3 h-3 rotate-45" style={{ background: 'hsl(222 47% 12%)' }} />
+                  Upgrade to Pay-As-You-Go to enable live search
+                  <span className="absolute right-3 -bottom-1.5 w-3 h-3 rotate-45 block"
+                    style={{ background: 'hsl(222 47% 12%)' }} />
                 </div>
               )}
             </div>
           </div>
-          <p className="text-xs text-muted-foreground leading-snug">
-            {isPaidUser
-              ? settings.liveSearch
-                ? 'Web results injected for time-sensitive queries'
-                : 'Click to enable real-time web context'
-              : 'Available on Pay-As-You-Go plan'}
-          </p>
-        </div>
 
-        {/* System Prompt */}
-        <div>
-          <label className="block text-xs font-bold text-foreground mb-2">System Prompt</label>
-          <textarea
-            value={settings.systemPrompt}
-            onChange={e => update(settings, onChange, 'systemPrompt', e.target.value)}
-            rows={6}
-            className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs resize-none focus:outline-none focus:ring-2 focus:border-primary transition"
-            placeholder="System instructions for the model…"
-          />
+          {isPaidUser && settings.liveSearch && (
+            <div className="mt-3 flex items-center gap-1.5 px-3 py-2 rounded-xl"
+              style={{ background: 'hsl(142 76% 45% / 0.08)' }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+              <span className="text-xs font-medium" style={{ color: 'hsl(142 76% 38%)' }}>
+                Searches Liberia news, prices &amp; live data
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Max Tokens */}
-        <div>
-          <label className="block text-xs font-bold text-foreground mb-2">Max Output Tokens</label>
+        <div className="px-5 py-4 border-b border-border/60">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'hsl(217 72% 47% / 0.1)' }}>
+              <Hash size={14} style={{ color: 'hsl(217 72% 47%)' }} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-foreground">Max Output Tokens</p>
+              <p className="text-xs text-muted-foreground">Response length limit</p>
+            </div>
+          </div>
           <input
             type="number" value={settings.maxTokens}
-            onChange={e => update(settings, onChange, 'maxTokens', Math.max(1, Math.min(4096, parseInt(e.target.value) || 500)))}
+            onChange={e => set(settings, onChange, 'maxTokens', Math.max(1, Math.min(4096, parseInt(e.target.value) || 500)))}
             min={1} max={4096}
-            className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:border-primary transition"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:border-primary transition"
           />
-          <p className="text-xs text-muted-foreground mt-1">Range: 1–4096</p>
+          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+            <Info size={10} />
+            Range: 1 – 4,096 tokens
+          </p>
         </div>
 
         {/* Active Model */}
-        <div className="rounded-xl p-3.5" style={{ background: 'hsl(217 72% 47% / 0.08)', border: '1px solid hsl(217 72% 47% / 0.2)' }}>
-          <div className="flex items-center gap-2 mb-1">
-            <Cpu size={13} style={{ color: 'hsl(217 72% 47%)' }} />
-            <p className="text-xs font-bold" style={{ color: 'hsl(217 72% 47%)' }}>Active Model</p>
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'hsl(222 47% 14%)' }}>
+              <Cpu size={14} className="text-white" />
+            </div>
+            <p className="text-xs font-bold text-foreground">Active Model</p>
           </div>
-          <p className="text-sm font-extrabold text-foreground">mesurado-1.0-lite</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Mesurado Engine Core</p>
-        </div>
-
-        {/* Tips */}
-        <div className="rounded-xl p-3 bg-muted/60">
-          <p className="text-xs font-bold text-foreground mb-1.5">Tips</p>
-          <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• Press Enter to send, Shift+Enter for newline</li>
-            <li>• System prompt sets model behaviour</li>
-            <li>• Lower temp → focused; higher → creative</li>
-            {isPaidUser && <li>• 🌐 Live Search auto-triggers for time-sensitive queries</li>}
-          </ul>
+          <div className="rounded-2xl p-4 border"
+            style={{
+              background: 'linear-gradient(135deg, hsl(222 47% 10%) 0%, hsl(222 47% 14%) 100%)',
+              borderColor: 'hsl(222 47% 20%)',
+            }}>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-xs font-medium text-emerald-400">Operational</span>
+            </div>
+            <p className="text-white font-extrabold text-sm">mesurado-1.0-lite</p>
+            <p className="text-xs mt-0.5" style={{ color: 'hsl(213 27% 60%)' }}>Mesurado Engine Core · Media Tech Liberia</p>
+          </div>
         </div>
       </div>
     </div>
