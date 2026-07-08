@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/auth-context';
 import { Sidebar } from './sidebar';
@@ -11,7 +11,11 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, noPadding }: DashboardLayoutProps) {
   const { isLoggedIn } = useAuth();
-  const [, setLocation] = useLocation();
+  const [pathname, setLocation] = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar on route change (mobile navigation)
+  useEffect(() => { setSidebarOpen(false); }, [pathname]);
 
   useEffect(() => {
     if (!isLoggedIn) setLocation('/login');
@@ -21,10 +25,10 @@ export function DashboardLayout({ children, noPadding }: DashboardLayoutProps) {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <Sidebar />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar />
-        <main className={`flex-1 overflow-y-auto ${noPadding ? '' : 'p-6'}`}>{children}</main>
+        <TopBar onMenuClick={() => setSidebarOpen(o => !o)} />
+        <main className={`flex-1 overflow-y-auto ${noPadding ? '' : 'p-4 md:p-6'}`}>{children}</main>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { LogOut, ChevronDown, Bell } from 'lucide-react';
+import { LogOut, ChevronDown, Bell, Menu } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -11,7 +11,11 @@ const PAGE_TITLES: Record<string, string> = {
   '/billing': 'Billing',
 };
 
-export function TopBar() {
+interface TopBarProps {
+  onMenuClick: () => void;
+}
+
+export function TopBar({ onMenuClick }: TopBarProps) {
   const [pathname, setLocation] = useLocation();
   const [open, setOpen] = useState(false);
   const { email, name, logout } = useAuth();
@@ -25,15 +29,24 @@ export function TopBar() {
   }
 
   return (
-    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-20">
-      <div className="flex items-center gap-3">
-        <h1 className="text-lg font-bold text-foreground">{title}</h1>
-        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+    <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between px-3 md:px-6 sticky top-0 z-20 flex-shrink-0">
+      <div className="flex items-center gap-2 md:gap-3 min-w-0">
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={onMenuClick}
+          className="md:hidden flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition"
+          aria-label="Open menu"
+        >
+          <Menu size={20} />
+        </button>
+
+        <h1 className="text-base md:text-lg font-bold text-foreground truncate">{title}</h1>
+        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0">
           ⚡ Mock Mode
         </span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
         <button className="w-9 h-9 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition">
           <Bell size={17} />
         </button>
@@ -41,22 +54,22 @@ export function TopBar() {
         <div className="relative">
           <button
             onClick={() => setOpen(o => !o)}
-            className="flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-xl hover:bg-muted transition text-sm"
+            className="flex items-center gap-1.5 md:gap-2.5 pl-1 pr-2 md:pr-3 py-1 rounded-xl hover:bg-muted transition text-sm"
           >
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-extrabold shadow-sm"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-extrabold shadow-sm flex-shrink-0"
               style={{ background: 'hsl(0 72% 51%)' }}
             >
               {initials}
             </div>
-            <span className="text-foreground font-medium max-w-[160px] truncate hidden sm:block">{email}</span>
+            <span className="text-foreground font-medium max-w-[120px] truncate hidden sm:block">{email}</span>
             <ChevronDown size={14} className="text-muted-foreground" />
           </button>
 
           {open && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-              <div className="absolute right-0 top-12 z-30 w-56 bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-11 md:top-12 z-30 w-52 md:w-56 bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
                 <div className="px-4 py-3 bg-muted/50 border-b border-border">
                   <p className="text-xs text-muted-foreground">Signed in as</p>
                   <p className="text-sm font-semibold text-foreground truncate mt-0.5">{email}</p>

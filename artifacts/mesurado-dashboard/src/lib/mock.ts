@@ -9,7 +9,8 @@ export const MOCK_USER = {
 export const MOCK_USAGE = {
   tokensRemaining: 742_835,
   totalTokensUsed: 257_165,
-  plan: 'free' as const,
+  plan: 'payg' as 'free' | 'payg',
+  searchesUsedThisMonth: 12,
 };
 
 // 30 days of daily token usage
@@ -59,8 +60,17 @@ export const MOCK_CHAT_RESPONSES = [
   "I can help with code, analysis, writing, summarisation, Q&A, and more. Since I use llama3.2-3b under the hood, I'm especially efficient for structured tasks and shorter context windows. What are you building?",
 ];
 
+export const MOCK_SEARCH_RESPONSES = [
+  "Based on the latest search results, here's what I found: The Liberian Observer reports significant developments in the region today. FrontPage Africa Online confirms the information with additional context from on-the-ground reporting. The New Dawn Liberia provides further details including official statements. This information is current as of today's date.",
+  "According to live search results retrieved just now, the current situation is as follows: Multiple credible Liberian news sources are reporting on this topic. The data reflects real-time conditions and may change throughout the day. I recommend checking the source URLs directly for the most up-to-date figures.",
+  "Live search results show the following current information: Sources including the Liberian Observer, FrontPage Africa Online, and The New Dawn Liberia are covering this story. The information above was retrieved in real time and reflects today's latest available data.",
+];
+
 let chatResponseIndex = 0;
-export function getMockChatResponse(input: string): string {
+export function getMockChatResponse(input: string, usedSearch = false): string {
+  if (usedSearch) {
+    return MOCK_SEARCH_RESPONSES[chatResponseIndex % MOCK_SEARCH_RESPONSES.length];
+  }
   const lower = input.toLowerCase();
   if (lower.includes('python') || lower.includes('code') || lower.includes('example')) return MOCK_CHAT_RESPONSES[3];
   if (lower.includes('temperature') || lower.includes('setting')) return MOCK_CHAT_RESPONSES[4];
