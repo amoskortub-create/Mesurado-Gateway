@@ -134,7 +134,7 @@ export function ChatInterface({ settings, isPaidUser, onSettingsClick }: ChatInt
           <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-extrabold flex-shrink-0"
             style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%), hsl(217 72% 47%))' }}>M</div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-foreground leading-tight truncate">mesurado-llama3.2-3b</p>
+            <p className="text-sm font-bold text-foreground leading-tight truncate">mesurado-1.0-lite</p>
             <p className="text-xs text-muted-foreground hidden sm:block">Playground — mock mode</p>
           </div>
         </div>

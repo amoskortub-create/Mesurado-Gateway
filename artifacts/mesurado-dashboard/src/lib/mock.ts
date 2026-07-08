@@ -51,13 +51,13 @@ export const MOCK_USAGE_LOGS = Array.from({ length: 40 }, (_, i) => {
 });
 
 export const MOCK_CHAT_RESPONSES = [
-  "I'm Mesurado AI, your OpenAI-compatible API gateway built by Media Tech Liberia. I'm running the mesurado-llama3.2-3b model and I'm here to help with any tasks you throw at me. What would you like to explore today?",
+  "I'm Mesurado AI, your OpenAI-compatible API gateway built by Media Tech Liberia. I'm running the mesurado-1.0-lite model and I'm here to help with any tasks you throw at me. What would you like to explore today?",
   "Great question! The Mesurado API follows the OpenAI ChatCompletion format exactly, so you can swap in your existing OpenAI client with just a base URL and key change. The endpoint is `POST /v1/chat/completions` with an `Authorization: Bearer mesurado_sk_live_…` header.",
   "Your free tier includes 1,000,000 tokens shared across API calls and Playground sessions. Usage is metered at $0.75 per million tokens after the free tier is exhausted. You can track consumption in real time from the Overview and Analytics pages.",
-  "Absolutely! Here's a Python example:\n\n```python\nfrom openai import OpenAI\n\nclient = OpenAI(\n    base_url=\"https://your-gateway.replit.app/v1\",\n    api_key=\"mesurado_sk_live_your_key\",\n)\n\nresponse = client.chat.completions.create(\n    model=\"mesurado-llama3.2-3b\",\n    messages=[{\"role\": \"user\", \"content\": \"Hello!\"}],\n)\nprint(response.choices[0].message.content)\n```",
+  "Absolutely! Here's a Python example:\n\n```python\nfrom openai import OpenAI\n\nclient = OpenAI(\n    base_url=\"https://your-gateway.replit.app/v1\",\n    api_key=\"mesurado_sk_live_your_key\",\n)\n\nresponse = client.chat.completions.create(\n    model=\"mesurado-1.0-lite\",\n    messages=[{\"role\": \"user\", \"content\": \"Hello!\"}],\n)\nprint(response.choices[0].message.content)\n```",
   "The temperature parameter controls output randomness. At 0.0 the model is deterministic and focused; at 1.0 it's more creative and varied. For code generation, try 0.2–0.4. For creative writing, 0.7–0.9 works well.",
   "Media Tech Liberia built Mesurado AI as a developer-focused API gateway that routes to open-source LLMs, giving developers an affordable alternative to closed-source providers with a familiar OpenAI-compatible interface.",
-  "I can help with code, analysis, writing, summarisation, Q&A, and more. Since I use llama3.2-3b under the hood, I'm especially efficient for structured tasks and shorter context windows. What are you building?",
+  "I can help with code, analysis, writing, summarisation, Q&A, and more. Since I use mesurado-1.0-lite under the hood, I'm especially efficient for structured tasks and shorter context windows. What are you building?",
 ];
 
 export const MOCK_SEARCH_RESPONSES = [

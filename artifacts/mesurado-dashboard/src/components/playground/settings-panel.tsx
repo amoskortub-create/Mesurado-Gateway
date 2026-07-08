@@ -136,7 +136,7 @@ export function SettingsPanel({ settings, onChange, isPaidUser, onMobileClose }:
             <Cpu size={13} style={{ color: 'hsl(217 72% 47%)' }} />
             <p className="text-xs font-bold" style={{ color: 'hsl(217 72% 47%)' }}>Active Model</p>
           </div>
-          <p className="text-sm font-extrabold text-foreground">mesurado-llama3.2-3b</p>
+          <p className="text-sm font-extrabold text-foreground">mesurado-1.0-lite</p>
           <p className="text-xs text-muted-foreground mt-0.5">Mesurado Engine Core</p>
         </div>
 
