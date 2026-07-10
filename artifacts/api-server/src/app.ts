@@ -30,7 +30,11 @@ app.use(express.urlencoded({ extended: true }));
 // Dashboard API routes
 app.use("/api", router);
 
-// Public OpenAI-compatible endpoint
+// Public OpenAI-compatible endpoint.
+// Mounted at both /v1 (standalone Node deployments, e.g. Railway/Render) and
+// /api/v1 (Vercel single-deployment: vercel.json rewrites /v1/* -> /api/v1/*
+// so it's served by the same catch-all function as /api/*, see api/[...path].ts).
 app.use("/v1", v1Router);
+app.use("/api/v1", v1Router);
 
 export default app;

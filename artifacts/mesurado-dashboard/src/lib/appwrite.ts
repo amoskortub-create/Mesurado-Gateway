@@ -9,7 +9,7 @@ export const COLLECTIONS = {
 
 export const appwriteClient = new Client()
   .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT ?? 'https://mediatechliberia.online/v1')
-  .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID as string);
+  .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID ?? 'mesurado01');
 
 export const account  = new Account(appwriteClient);
 export const databases = new Databases(appwriteClient);

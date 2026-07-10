@@ -12,10 +12,13 @@ export const COLLECTIONS = {
 export { ID, Query };
 
 /** Admin client — API-key auth, for all server-side operations */
+export const APPWRITE_ENDPOINT = process.env.APPWRITE_ENDPOINT ?? 'https://mediatechliberia.online/v1';
+export const APPWRITE_PROJECT_ID = process.env.APPWRITE_PROJECT_ID ?? 'mesurado01';
+
 export function createAdminClient() {
   const client = new Client()
-    .setEndpoint(process.env.APPWRITE_ENDPOINT!)
-    .setProject(process.env.APPWRITE_PROJECT_ID!)
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID)
     .setKey(process.env.APPWRITE_API_KEY!);
   return {
     account: new Account(client),
@@ -29,8 +32,8 @@ export function createAdminClient() {
 /** Auth client — no API key, used ONLY for createEmailPasswordSession */
 export function createAuthClient() {
   const client = new Client()
-    .setEndpoint(process.env.APPWRITE_ENDPOINT!)
-    .setProject(process.env.APPWRITE_PROJECT_ID!);
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID);
   return { account: new Account(client) };
 }
 
