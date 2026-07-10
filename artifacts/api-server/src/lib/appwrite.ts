@@ -11,6 +11,7 @@ export const COLLECTIONS = {
   GATEKEEPER_SLOTS:       'gatekeeper_slots',
   REQUEST_QUEUE:          'request_queue',
   RATE_LIMIT_OVERRIDES:   'rate_limit_overrides',
+  ADMINS:                 'admins',
 } as const;
 
 export { ID, Query };
@@ -55,12 +56,46 @@ export const DEFAULT_PREFS: UserPrefs = {
   mesurado_total_purchased: 0,
 };
 
-/** Check if a user has the Administrator label */
+/**
+ * Check if a user is an administrator.
+ *
+ * Two sources are checked (either is sufficient):
+ *   1. `admins` Appwrite collection — add a document with the user's `user_id`
+ *      field in Database → mesurado → admins. This is the recommended way.
+ *   2. Appwrite user label `'Administrator'` — legacy fallback.
+ *
+ * Both checks are performed in parallel for speed.
+ */
 export async function isAdminUser(userId: string): Promise<boolean> {
   try {
-    const { users } = createAdminClient();
-    const user = await users.get(userId);
-    return Array.isArray(user.labels) && user.labels.includes('Administrator');
+    const { users, databases } = createAdminClient();
+
+    const [userResult, collectionResult] = await Promise.allSettled([
+      users.get(userId),
+      databases.listDocuments(DATABASE_ID, COLLECTIONS.ADMINS, [
+        Query.equal('user_id', userId),
+        Query.limit(1),
+      ]),
+    ]);
+
+    // Collection check (preferred)
+    if (
+      collectionResult.status === 'fulfilled' &&
+      collectionResult.value.total > 0
+    ) {
+      return true;
+    }
+
+    // Label fallback
+    if (
+      userResult.status === 'fulfilled' &&
+      Array.isArray(userResult.value.labels) &&
+      userResult.value.labels.includes('Administrator')
+    ) {
+      return true;
+    }
+
+    return false;
   } catch {
     return false;
   }

@@ -209,6 +209,38 @@ await safeCreate('attr: total_tokens', () =>
   db.createIntegerAttribute(DB_ID, 'usage_logs', 'total_tokens', false, 0)
 );
 
+// ─── 6. admins ────────────────────────────────────────────────────────────────
+//
+// Manually grant admin access by adding a document here:
+//   Database → mesurado → admins → Create document
+//   Fields: user_id (Appwrite user $id), email (display only), granted_at (ISO date)
+//
+// The isAdminUser() function checks this collection first, then falls back
+// to the Appwrite user label 'Administrator'.
+
+console.log('\n[6/6] admins');
+
+await safeCreate('collection', () =>
+  db.createCollection(DB_ID, 'admins', 'Administrators')
+);
+
+await safeCreate('attr: user_id', () =>
+  db.createStringAttribute(DB_ID, 'admins', 'user_id', 255, true)
+);
+await safeCreate('attr: email', () =>
+  db.createStringAttribute(DB_ID, 'admins', 'email', 320, false)
+);
+await safeCreate('attr: granted_at', () =>
+  db.createStringAttribute(DB_ID, 'admins', 'granted_at', 30, true)
+);
+
+await waitForAttributes('admins', 3);
+
+// Unique index so each user can only appear once
+await safeCreate('index: user_id_unique', () =>
+  db.createIndex(DB_ID, 'admins', 'user_id_unique', 'unique', ['user_id'])
+);
+
 // ─── Done ─────────────────────────────────────────────────────────────────────
 
 console.log('\n✅ Provisioning complete.\n');
