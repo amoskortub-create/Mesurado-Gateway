@@ -8,7 +8,7 @@ export const COLLECTIONS = {
 } as const;
 
 export const appwriteClient = new Client()
-  .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT as string)
+  .setEndpoint(import.meta.env.VITE_APPWRITE_ENDPOINT ?? 'https://mediatechliberia.online/v1')
   .setProject(import.meta.env.VITE_APPWRITE_PROJECT_ID as string);
 
 export const account  = new Account(appwriteClient);
