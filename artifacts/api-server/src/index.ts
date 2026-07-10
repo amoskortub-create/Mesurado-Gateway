@@ -1,5 +1,10 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { validateCoreUrl } from "./lib/core-url";
+
+// Validate MESURADO_CORE_URL scheme before accepting traffic.
+// Throws in production if the endpoint is not HTTPS (master token exposure).
+validateCoreUrl();
 
 const rawPort = process.env["PORT"];
 
