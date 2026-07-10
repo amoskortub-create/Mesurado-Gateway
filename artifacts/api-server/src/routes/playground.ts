@@ -334,8 +334,7 @@ router.post('/chat', async (req: Request, res: Response) => {
       const completionTokens = countTokens(completionText);
       const actualTotal = promptTokens + completionTokens;
       const costDebit = calcCost(actualTotal);
-      const refund = Math.max(0, maxEstimate - actualTotal);
-      const finalBalance = Math.min(tokensRemaining, preChargedBalance + refund);
+      const finalBalance = Math.max(0, tokensRemaining - actualTotal);
       const newTotalUsed = Number(prefs.mesurado_total_tokens_used ?? 0) + actualTotal;
 
       let reportedBalance = finalBalance;
