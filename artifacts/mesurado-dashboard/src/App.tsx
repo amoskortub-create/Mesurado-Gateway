@@ -13,6 +13,7 @@ import BillingPage from '@/pages/billing';
 import PlaygroundPage from '@/pages/playground';
 import AddFundsPage from '@/pages/add-funds';
 import AdminPaymentsPage from '@/pages/admin-payments';
+import DocsPage from '@/pages/docs';
 import NotFound from '@/pages/not-found';
 import { DashboardLayout } from '@/components/dashboard/layout';
 
@@ -70,6 +71,9 @@ function Router() {
       </Route>
       <Route path="/billing/add-funds">
         <DashboardLayout><AddFundsPage /></DashboardLayout>
+      </Route>
+      <Route path="/docs">
+        <DashboardLayout><DocsPage /></DashboardLayout>
       </Route>
       <Route path="/admin/payments">
         <AdminGuard>

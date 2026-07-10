@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, Terminal, Key, BarChart3, CreditCard, Zap, Activity, X, Wallet, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Terminal, Key, BarChart3, CreditCard, Zap, Activity, X, Wallet, ShieldCheck, BookOpen } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 const BASE_NAV_ITEMS = [
   { href: '/overview', label: 'Overview', icon: LayoutDashboard },
   { href: '/playground', label: 'Playground', icon: Terminal },
   { href: '/api-keys', label: 'API Keys', icon: Key },
+  { href: '/docs', label: 'API Reference', icon: BookOpen },
   { href: '/analytics', label: 'Usage Analytics', icon: BarChart3 },
   { href: '/billing', label: 'Billing', icon: CreditCard },
   { href: '/billing/add-funds', label: 'Add Funds', icon: Wallet },

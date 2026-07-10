@@ -294,7 +294,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
                   id: chatId,
                   object: 'chat.completion.chunk',
                   created: createdAt,
-                  model: 'mesurado-llama3.2-3b',
+                  model: 'mesurado-1.0-lite',
                   choices: [{ index: 0, delta: { content: text }, finish_reason: null }],
                 });
                 res.write(`data: ${sseChunk}\n\n`);
@@ -309,7 +309,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
                 id: chatId,
                 object: 'chat.completion.chunk',
                 created: createdAt,
-                model: 'mesurado-llama3.2-3b',
+                model: 'mesurado-1.0-lite',
                 choices: [{ index: 0, delta: { content: tail }, finish_reason: null }],
               });
               res.write(`data: ${sseChunk}\n\n`);
@@ -390,7 +390,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         id: generateChatId(),
         object: 'chat.completion',
         created: Math.floor(Date.now() / 1000),
-        model: 'mesurado-llama3.2-3b',
+        model: 'mesurado-1.0-lite',
         choices: [
           { index: 0, message: { role: 'assistant', content: aiContent }, finish_reason: 'stop' },
         ],
