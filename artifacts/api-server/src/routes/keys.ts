@@ -109,16 +109,91 @@ router.delete('/delete', async (req: Request, res: Response) => {
       return;
     }
 
+    await databases.deleteDocument(DATABASE_ID, COLLECTIONS.API_KEYS, parsed.data.key_id);
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, '[DELETE /api/keys/delete]');
+    res.status(500).json({ error: 'Failed to delete key' });
+  }
+});
+
+// POST /api/keys/deactivate
+router.post('/deactivate', async (req: Request, res: Response) => {
+  const session = await requireSession(req, res);
+  if (!session) return;
+
+  const schema = z.object({ key_id: z.string().min(1) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'key_id is required' });
+    return;
+  }
+
+  try {
+    const { databases } = createAdminClient();
+    let doc;
+    try {
+      doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.API_KEYS, parsed.data.key_id);
+    } catch {
+      res.status(404).json({ error: 'API key not found' });
+      return;
+    }
+
+    if (String(doc.user_id) !== session.userId) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
     if (!doc.is_active) {
-      res.status(409).json({ error: 'API key is already deactivated' });
+      res.status(409).json({ error: 'API key is already inactive' });
       return;
     }
 
     await databases.updateDocument(DATABASE_ID, COLLECTIONS.API_KEYS, parsed.data.key_id, { is_active: false });
     res.json({ success: true });
   } catch (err) {
-    req.log.error({ err }, '[DELETE /api/keys/delete]');
+    req.log.error({ err }, '[POST /api/keys/deactivate]');
     res.status(500).json({ error: 'Failed to deactivate key' });
+  }
+});
+
+// POST /api/keys/reactivate
+router.post('/reactivate', async (req: Request, res: Response) => {
+  const session = await requireSession(req, res);
+  if (!session) return;
+
+  const schema = z.object({ key_id: z.string().min(1) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'key_id is required' });
+    return;
+  }
+
+  try {
+    const { databases } = createAdminClient();
+    let doc;
+    try {
+      doc = await databases.getDocument(DATABASE_ID, COLLECTIONS.API_KEYS, parsed.data.key_id);
+    } catch {
+      res.status(404).json({ error: 'API key not found' });
+      return;
+    }
+
+    if (String(doc.user_id) !== session.userId) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+
+    if (doc.is_active) {
+      res.status(409).json({ error: 'API key is already active' });
+      return;
+    }
+
+    await databases.updateDocument(DATABASE_ID, COLLECTIONS.API_KEYS, parsed.data.key_id, { is_active: true });
+    res.json({ success: true });
+  } catch (err) {
+    req.log.error({ err }, '[POST /api/keys/reactivate]');
+    res.status(500).json({ error: 'Failed to reactivate key' });
   }
 });
 

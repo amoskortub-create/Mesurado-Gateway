@@ -259,31 +259,33 @@ router.post('/chat', async (req: Request, res: Response) => {
         }
       } catch { /* ignore — keyDocId stays 'playground' */ }
 
-      // ── 11. Fetch Gatekeeper with streaming ──────────────────────────────
+      // ── 11. Build flat prompt for engine ─────────────────────────────────
+      const promptParts: string[] = [];
+      for (const m of fullMessages) {
+        if (m.role === 'system') promptParts.push(`System: ${m.content}`);
+        else if (m.role === 'user') promptParts.push(`User: ${m.content}`);
+        else if (m.role === 'assistant') promptParts.push(`Assistant: ${m.content}`);
+      }
+      const prompt = promptParts.join('\n\n');
+
+      // ── 12. Call engine ───────────────────────────────────────────────────
       let aiRes: FetchResponse;
       try {
-        aiRes = await fetch(`${coreUrl}/v1/chat/completions`, {
+        aiRes = await fetch(`${coreUrl}/generate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-Mesurado-Auth': masterToken,
-            'Origin': `https://${process.env.MESURADO_DOMAIN ?? 'mesurado.mediatechliberia.online'}`,
+            'X-Mesurado-Origin': process.env.MESURADO_DOMAIN ?? 'mesurado.mediatechliberia.online',
           },
-          body: JSON.stringify({
-            model: 'mesurado-llama3.2-3b',
-            messages: fullMessages,
-            temperature,
-            max_tokens,
-            stream: true,
-          }),
+          body: JSON.stringify({ prompt, temperature }),
           signal: AbortSignal.timeout(90_000),
         });
       } catch {
-        // Restore pre-charge on fetch error
         await users.updatePrefs(session.userId, { ...prefs, mesurado_tokens_remaining: tokensRemaining }).catch(() => {});
         sendEvent(res, { type: 'error', code: 502, message: 'Mesurado engine is scaling or unreachable.' });
         sendDone(res);
-        return; // `finally` releases slot
+        return;
       }
 
       if (!aiRes.ok) {
@@ -294,25 +296,13 @@ router.post('/chat', async (req: Request, res: Response) => {
           : 'Mesurado engine is scaling or unreachable.';
         sendEvent(res, { type: 'error', code, message: msg });
         sendDone(res);
-        return; // `finally` releases slot
+        return;
       }
 
-      // ── 12. Stream tokens to client, buffer full text ────────────────────
-      let completionText = '';
-      const contentType = aiRes.headers.get('content-type') ?? '';
-
-      if (contentType.includes('text/event-stream') && aiRes.body) {
-        for await (const token of parseOllamaStream(aiRes.body as ReadableStream<Uint8Array>)) {
-          completionText += token;
-          sendEvent(res, { type: 'token', content: token });
-          if (res.destroyed) break;
-        }
-      } else {
-        // Non-streaming fallback
-        const aiData = await aiRes.json() as { choices?: { message?: { content?: string } }[] };
-        completionText = aiData.choices?.[0]?.message?.content ?? '';
-        if (completionText) sendEvent(res, { type: 'token', content: completionText });
-      }
+      // ── 13. Parse response and stream tokens to client ───────────────────
+      const aiData = await aiRes.json() as { response?: string; text?: string; output?: string; choices?: { message?: { content?: string } }[] };
+      const completionText = aiData.response ?? aiData.text ?? aiData.output ?? aiData.choices?.[0]?.message?.content ?? '';
+      if (completionText && !res.destroyed) sendEvent(res, { type: 'token', content: completionText });
 
       // Slot is released here — before billing — so queued requests can start.
       release();

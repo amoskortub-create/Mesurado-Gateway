@@ -225,23 +225,25 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
     // Slot acquired. Everything from here is wrapped in try/finally to guarantee release.
     try {
-      // ── 10. Call Gatekeeper ──────────────────────────────────────────────
+      // ── 10. Build flat prompt and call engine ────────────────────────────
+      const promptParts: string[] = [];
+      for (const m of messages) {
+        if (m.role === 'system') promptParts.push(`System: ${m.content}`);
+        else if (m.role === 'user') promptParts.push(`User: ${m.content}`);
+        else if (m.role === 'assistant') promptParts.push(`Assistant: ${m.content}`);
+      }
+      const prompt = promptParts.join('\n\n');
+
       let aiRes: FetchResponse;
       try {
-        aiRes = await fetch(`${coreUrl}/v1/chat/completions`, {
+        aiRes = await fetch(`${coreUrl}/generate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-Mesurado-Auth': masterToken,
-            'Origin': `https://${process.env.MESURADO_DOMAIN ?? 'mesurado.mediatechliberia.online'}`,
+            'X-Mesurado-Origin': process.env.MESURADO_DOMAIN ?? 'mesurado.mediatechliberia.online',
           },
-          body: JSON.stringify({
-            model: 'mesurado-llama3.2-3b',
-            messages,
-            temperature,
-            max_tokens,
-            stream,
-          }),
+          body: JSON.stringify({ prompt, temperature }),
           signal: AbortSignal.timeout(90_000),
         });
       } catch {
@@ -260,9 +262,11 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         return;
       }
 
-      const contentType = aiRes.headers.get('content-type') ?? '';
+      // ── 11. Parse engine response (flat JSON) ─────────────────────────────
+      const aiData = await aiRes.json() as { response?: string; text?: string; output?: string; choices?: { message?: { content?: string } }[] };
+      const aiContent = aiData.response ?? aiData.text ?? aiData.output ?? aiData.choices?.[0]?.message?.content ?? '';
 
-      // ── 11a. Streaming response ────────────────────────────────────────────
+      // ── 12a. Streaming response (synthesise SSE from full response) ────────
       if (stream) {
         res.set({
           'Content-Type': 'text/event-stream',
@@ -272,37 +276,21 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         });
         res.flushHeaders();
 
-        let completionText = '';
-
-        // Stream and buffer simultaneously. Release slot before billing.
-        if (contentType.includes('text/event-stream') && aiRes.body) {
-          for await (const { content, rawLine } of parseOllamaStream(aiRes.body as ReadableStream<Uint8Array>)) {
-            completionText += content;
-            if (!res.destroyed) res.write(rawLine + '\n');
-            if (res.destroyed) break;
-          }
-        } else {
-          // Gatekeeper returned JSON even though we asked for SSE — synthesise one chunk
-          const aiData = await aiRes.json() as { choices?: { message?: { content?: string } }[] };
-          completionText = aiData.choices?.[0]?.message?.content ?? '';
-          if (completionText) {
-            const chunk = JSON.stringify({
-              id: generateChatId(),
-              object: 'chat.completion.chunk',
-              created: Math.floor(Date.now() / 1000),
-              model: 'mesurado-llama3.2-3b',
-              choices: [{ index: 0, delta: { content: completionText }, finish_reason: null }],
-            });
-            if (!res.destroyed) res.write(`data: ${chunk}\n\n`);
-          }
+        if (aiContent) {
+          const chunk = JSON.stringify({
+            id: generateChatId(),
+            object: 'chat.completion.chunk',
+            created: Math.floor(Date.now() / 1000),
+            model: 'mesurado-llama3.2-3b',
+            choices: [{ index: 0, delta: { content: aiContent }, finish_reason: null }],
+          });
+          if (!res.destroyed) res.write(`data: ${chunk}\n\n`);
         }
 
-        // Release slot before billing so queue drains as quickly as possible
         release();
         release = null;
 
-        // Billing — do not fail the response on billing error
-        const completionTokens = countTokens(completionText);
+        const completionTokens = countTokens(aiContent);
         const actualTotal = promptTokens + completionTokens;
         const costDebit = calcCost(actualTotal);
         const refund = Math.max(0, maxEstimate - actualTotal);
@@ -311,47 +299,24 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
 
         try {
           await Promise.all([
-            users.updatePrefs(userId, {
-              ...prefs,
-              mesurado_tokens_remaining: finalBalance,
-              mesurado_total_tokens_used: newTotalUsed,
-            }),
+            users.updatePrefs(userId, { ...prefs, mesurado_tokens_remaining: finalBalance, mesurado_total_tokens_used: newTotalUsed }),
             databases.createDocument(DATABASE_ID, COLLECTIONS.USAGE_LOGS, ID.unique(), {
-              user_id: userId,
-              key_id: keyDoc.$id,
-              source: 'api',
-              prompt_tokens: promptTokens,
-              completion_tokens: completionTokens,
-              cost_debit: costDebit,
-              timestamp: new Date().toISOString(),
+              user_id: userId, key_id: keyDoc.$id, source: 'api',
+              prompt_tokens: promptTokens, completion_tokens: completionTokens,
+              cost_debit: costDebit, timestamp: new Date().toISOString(),
             }),
           ]);
         } catch (billingErr) {
-          req.log.error({ err: billingErr, userId },
-            '[billing] token deduction failed after stream — manual review needed');
+          req.log.error({ err: billingErr, userId }, '[billing] token deduction failed after stream — manual review needed');
         }
-        reconciled = true; // billing phase complete (success or logged error)
+        reconciled = true;
 
-        if (!res.destroyed) {
-          res.write('data: [DONE]\n\n');
-          res.end();
-        }
+        if (!res.destroyed) { res.write('data: [DONE]\n\n'); res.end(); }
         return;
       }
 
-      // ── 11b. Non-streaming response ────────────────────────────────────────
-      let aiContent: string;
-      if (contentType.includes('text/event-stream') && aiRes.body) {
-        // Gatekeeper streamed even though we didn't request it — buffer it all
-        let buffered = '';
-        for await (const { content } of parseOllamaStream(aiRes.body as ReadableStream<Uint8Array>)) {
-          buffered += content;
-        }
-        aiContent = buffered;
-      } else {
-        const aiData = await aiRes.json() as { choices?: { message?: { content?: string } }[] };
-        aiContent = aiData.choices?.[0]?.message?.content ?? '';
-      }
+      // ── 12b. Non-streaming ─────────────────────────────────────────────────
+      // (aiContent already parsed above)
 
       // Release slot — we have the full response in memory now
       release();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Copy, Trash2, Key, Check, Loader2, AlertCircle, Shield, RefreshCw } from 'lucide-react';
+import { Plus, Copy, Trash2, Key, Check, Loader2, AlertCircle, Shield, RefreshCw, RotateCcw, PauseCircle } from 'lucide-react';
 import { appwriteClient, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { formatDate, maskKeyPrefix } from '@/lib/utils';
 
@@ -21,6 +21,7 @@ export default function ApiKeysPage() {
   const [createdKey, setCreatedKey] = useState('');
   const [copied, setCopied] = useState('');
   const [deleting, setDeleting] = useState('');
+  const [toggling, setToggling] = useState(''); // deactivate or reactivate
 
   const fetchKeys = useCallback(async () => {
     setLoading(true);
@@ -39,7 +40,6 @@ export default function ApiKeysPage() {
 
   useEffect(() => { fetchKeys(); }, [fetchKeys]);
 
-  // Real-time: re-fetch when api_keys collection changes
   useEffect(() => {
     let unsub: (() => void) | null = null;
     try {
@@ -79,6 +79,7 @@ export default function ApiKeysPage() {
   }
 
   async function deleteKey(id: string) {
+    if (!confirm('Permanently delete this API key? This cannot be undone.')) return;
     setDeleting(id);
     try {
       const res = await fetch('/api/keys/delete', {
@@ -93,6 +94,25 @@ export default function ApiKeysPage() {
       setError(err instanceof Error ? err.message : 'Failed to delete key');
     } finally {
       setDeleting('');
+    }
+  }
+
+  async function toggleKey(id: string, currentlyActive: boolean) {
+    setToggling(id);
+    const endpoint = currentlyActive ? '/api/keys/deactivate' : '/api/keys/reactivate';
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key_id: id }),
+      });
+      if (!res.ok) throw new Error(`Failed to ${currentlyActive ? 'deactivate' : 'reactivate'} key`);
+      await fetchKeys();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update key');
+    } finally {
+      setToggling('');
     }
   }
 
@@ -128,8 +148,9 @@ export default function ApiKeysPage() {
       </div>
 
       {error && (
-        <div className="px-4 py-3 rounded-xl text-sm text-red-700 bg-red-50 border border-red-200">
-          {error}
+        <div className="px-4 py-3 rounded-xl text-sm text-red-700 bg-red-50 border border-red-200 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="ml-3 text-red-400 hover:text-red-600 font-bold">×</button>
         </div>
       )}
 
@@ -196,11 +217,35 @@ export default function ApiKeysPage() {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <button onClick={() => deleteKey(key.$id)} disabled={!!deleting}
-                        className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-medium transition disabled:opacity-50">
-                        {deleting === key.$id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                        {deleting === key.$id ? 'Deleting…' : 'Delete'}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        {/* Deactivate / Reactivate toggle */}
+                        <button
+                          onClick={() => toggleKey(key.$id, key.is_active)}
+                          disabled={!!toggling || !!deleting}
+                          className={`flex items-center gap-1.5 text-xs font-medium transition disabled:opacity-50 ${
+                            key.is_active
+                              ? 'text-amber-600 hover:text-amber-700'
+                              : 'text-emerald-600 hover:text-emerald-700'
+                          }`}>
+                          {toggling === key.$id
+                            ? <Loader2 size={12} className="animate-spin" />
+                            : key.is_active
+                              ? <PauseCircle size={12} />
+                              : <RotateCcw size={12} />}
+                          {toggling === key.$id
+                            ? (key.is_active ? 'Disabling…' : 'Activating…')
+                            : key.is_active ? 'Deactivate' : 'Reactivate'}
+                        </button>
+
+                        {/* Permanent delete */}
+                        <button
+                          onClick={() => deleteKey(key.$id)}
+                          disabled={!!deleting || !!toggling}
+                          className="flex items-center gap-1.5 text-xs text-red-600 hover:text-red-700 font-medium transition disabled:opacity-50">
+                          {deleting === key.$id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          {deleting === key.$id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
