@@ -3,14 +3,15 @@
  * POST /v1/chat/completions
  * Authorization: Bearer mesurado_sk_live_…
  *
- * Protection layers (all server-side):
- *   1. Bearer token auth → API key lookup in Appwrite
- *   2. Balance check (Appwrite)
- *   3. Per-key rate limit  (Redis / in-memory fallback; admin override by user_id)
- *   4. Global concurrency queue (shared with playground — max 3 in-flight)
- *   5. Per-request queue timeout (20 s default)
+ * Protection layers (all server-side, all persisted in Appwrite):
+ *   1. Bearer token auth → API key lookup
+ *   2. Balance check (Appwrite user prefs)
+ *   3. Per-key rate limit  (Appwrite rate_limits — deterministic doc ID, fail-open)
+ *   4. Pre-charge balance
+ *   5. Global concurrency check (Appwrite gatekeeper_slots — immediate reject, self-healing)
  *
  * Supports streaming (SSE, OpenAI format) and non-streaming (JSON).
+ * AbortController propagates client disconnect to abort the upstream AI fetch.
  */
 
 import { Router, type Request, type Response, type IRouter } from 'express';
@@ -19,16 +20,12 @@ import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/a
 import { countTokens, calcCost } from '../lib/token-utils.js';
 import { hashApiKey } from '../lib/key-hash.js';
 import { resolveCoreUrl } from '../lib/core-url.js';
-import { checkRateLimit, setRateLimitHeaders, RATE_LIMIT_FREE, RATE_LIMIT_PAID } from '../lib/rate-limiter.js';
-import {
-  gatekeeperQueue,
-  QueueFullError,
-  QueueTimeoutError,
-  QueueClearedError,
-} from '../lib/gatekeeper-queue.js';
+import { checkRateLimit, setRateLimitHeaders, RATE_LIMIT_FREE, RATE_LIMIT_PAID } from '../lib/appwrite-rate-limiter.js';
+import { checkAndIncrementSlots, decrementSlots } from '../lib/appwrite-gatekeeper.js';
 
-// `Response` in this file refers to Express's Response.
-// fetch() results use this separate alias to avoid the name clash.
+// Keep these exports so any future code referencing these constants still compiles.
+export { RATE_LIMIT_FREE, RATE_LIMIT_PAID };
+
 type FetchResponse = Awaited<ReturnType<typeof fetch>>;
 
 const router: IRouter = Router();
@@ -64,41 +61,6 @@ function jsonError(res: Response, message: string, type: string, status: number)
   return res.status(status).set(CORS_HEADERS).json({ error: { message, type, code: status } });
 }
 
-// ─── Ollama SSE parser ────────────────────────────────────────────────────────
-
-async function* parseOllamaStream(
-  body: ReadableStream<Uint8Array>,
-): AsyncGenerator<{ content: string; rawLine: string }> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let leftover = '';
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const text = leftover + decoder.decode(value, { stream: true });
-      const lines = text.split('\n');
-      leftover = lines.pop() ?? '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data: ')) continue;
-        const raw = trimmed.slice(6);
-        if (raw === '[DONE]') return;
-        try {
-          const chunk = JSON.parse(raw) as { choices?: { delta?: { content?: string } }[] };
-          const content = chunk?.choices?.[0]?.delta?.content ?? '';
-          yield { content, rawLine: trimmed + '\n' };
-        } catch { /* malformed chunk */ }
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
-
 // ─── OPTIONS preflight ────────────────────────────────────────────────────────
 
 router.options('/chat/completions', (_req: Request, res: Response) => {
@@ -110,7 +72,7 @@ router.options('/chat/completions', (_req: Request, res: Response) => {
 router.post('/chat/completions', async (req: Request, res: Response) => {
   // ── 1. Auth ────────────────────────────────────────────────────────────────
   const authHeader = (req.headers.authorization as string) ?? '';
-  const keyString = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  const keyString  = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
   if (!keyString || !keyString.startsWith('mesurado_sk_live_')) {
     jsonError(res, 'Missing or invalid Authorization header. Use: Bearer mesurado_sk_live_…', 'invalid_request_error', 401);
     return;
@@ -128,7 +90,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     const { databases, users } = createAdminClient();
 
     // ── 3. Look up API key ─────────────────────────────────────────────────
-    const keyHash = await hashApiKey(keyString);
+    const keyHash    = await hashApiKey(keyString);
     const keysResult = await databases.listDocuments(DATABASE_ID, COLLECTIONS.API_KEYS, [
       Query.equal('key_hash', keyHash),
       Query.equal('is_active', true),
@@ -153,22 +115,21 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       return;
     }
 
-    const prefs = (user.prefs ?? {}) as Record<string, number | string>;
+    const prefs           = (user.prefs ?? {}) as Record<string, number | string>;
     const tokensRemaining = Number(prefs.mesurado_tokens_remaining ?? 0);
-    const isPaidPlan = (prefs.mesurado_plan ?? 'free') !== 'free';
+    const isPaidPlan      = (prefs.mesurado_plan ?? 'free') !== 'free';
 
     // ── 5. Balance check ───────────────────────────────────────────────────
     const promptTokens = countTokens(messages.map(m => m.content).join(' '));
-    const maxEstimate = promptTokens + max_tokens;
 
     if (tokensRemaining < promptTokens) {
       jsonError(res, 'Token balance exhausted. Log in to your Mesurado dashboard to add funds.', 'insufficient_quota', 402);
       return;
     }
 
-    // ── 6. Rate limit ──────────────────────────────────────────────────────
-    const defaultLimit = isPaidPlan ? RATE_LIMIT_PAID : RATE_LIMIT_FREE;
-    const rateResult = await checkRateLimit(`key:${keyDoc.$id}`, defaultLimit, userId);
+    // ── 6. Rate limit (Appwrite, keyed per API key) ────────────────────────
+    // Each API key gets its own rate-limit bucket (keyDoc.$id as identifier).
+    const rateResult = await checkRateLimit(`key_${keyDoc.$id}`, isPaidPlan);
 
     res.set(CORS_HEADERS);
     setRateLimitHeaders(res, rateResult);
@@ -179,17 +140,18 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
     }
 
     // ── 7. Engine config ───────────────────────────────────────────────────
-    const coreUrl = resolveCoreUrl();
+    const coreUrl     = resolveCoreUrl();
     const masterToken = process.env.MESURADO_MASTER_TOKEN;
     if (!coreUrl || !masterToken) {
       jsonError(res, 'Mesurado engine is not configured on this gateway.', 'server_error', 503);
       return;
     }
 
-    // ── 8. Pre-charge ──────────────────────────────────────────────────────
+    // ── 8. Pre-charge balance ──────────────────────────────────────────────
+    const maxEstimate       = promptTokens + max_tokens;
     const preChargedBalance = Math.max(0, tokensRemaining - maxEstimate);
     let preChargeApplied = false;
-    let reconciled = false;
+    let reconciled       = false;
 
     try {
       await users.updatePrefs(userId, { ...prefs, mesurado_tokens_remaining: preChargedBalance });
@@ -199,40 +161,48 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       return;
     }
 
-    // Helper: restore pre-charge on explicit error paths
     async function restorePrecharge(): Promise<void> {
-      reconciled = true; // Treat explicit rollback as "resolved" — no double-restore
+      reconciled = true;
       await users.updatePrefs(userId, { ...prefs, mesurado_tokens_remaining: tokensRemaining }).catch(() => {});
     }
 
-    // ── 9. Acquire concurrency slot ────────────────────────────────────────
-    let release: (() => void) | null = null;
-    req.on('close', () => { release?.(); release = null; });
-
-    try {
-      release = await gatekeeperQueue.acquire();
-    } catch (err) {
+    // ── 9. Concurrency slot check (Appwrite — immediate reject) ────────────
+    const slotResult = await checkAndIncrementSlots();
+    if (!slotResult.acquired) {
       await restorePrecharge();
-      if (err instanceof QueueFullError) {
-        jsonError(res, 'Mesurado is at capacity. Please retry in a few seconds.', 'rate_limit_error', 429);
-      } else if (err instanceof QueueTimeoutError || err instanceof QueueClearedError) {
-        jsonError(res, 'Mesurado engine is scaling or unreachable.', 'server_error', 503);
-      } else {
-        jsonError(res, 'Internal server error', 'server_error', 500);
-      }
+      jsonError(res, 'Mesurado is at capacity. Please retry in a few seconds.', 'rate_limit_error', 429);
       return;
     }
 
-    // Slot acquired. Everything from here is wrapped in try/finally to guarantee release.
+    let slotReleased = false;
+    async function releaseSlot(): Promise<void> {
+      if (slotReleased) return;
+      slotReleased = true;
+      await decrementSlots();
+    }
+
+    // AbortController to cancel upstream AI fetch on client disconnect.
+    const abortController = new AbortController();
+    req.on('close', () => {
+      abortController.abort('client_disconnect');
+      releaseSlot().catch(() => {});
+    });
+
     try {
-      // ── 10. Build flat prompt and call engine ────────────────────────────
+      // ── 10. Build flat prompt ────────────────────────────────────────────
       const promptParts: string[] = [];
       for (const m of messages) {
-        if (m.role === 'system') promptParts.push(`System: ${m.content}`);
+        if (m.role === 'system')    promptParts.push(`System: ${m.content}`);
         else if (m.role === 'user') promptParts.push(`User: ${m.content}`);
-        else if (m.role === 'assistant') promptParts.push(`Assistant: ${m.content}`);
+        else                        promptParts.push(`Assistant: ${m.content}`);
       }
       const prompt = promptParts.join('\n\n');
+
+      // ── 11. Call engine (with client-disconnect abort) ───────────────────
+      const fetchSignal = AbortSignal.any([
+        AbortSignal.timeout(90_000),
+        abortController.signal,
+      ]);
 
       let aiRes: FetchResponse;
       try {
@@ -244,11 +214,20 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
             'X-Mesurado-Origin': process.env.MESURADO_DOMAIN ?? 'mesurado.mediatechliberia.online',
           },
           body: JSON.stringify({ prompt, temperature }),
-          signal: AbortSignal.timeout(90_000),
+          signal: fetchSignal,
         });
-      } catch {
+      } catch (fetchErr: unknown) {
+        const e = fetchErr as { name?: string };
         await restorePrecharge();
-        jsonError(res, 'Mesurado engine is scaling or unreachable.', 'server_error', 502);
+        if (e?.name === 'AbortError' && abortController.signal.aborted) {
+          // Client disconnected — no response needed
+          return;
+        }
+        const msg = e?.name === 'TimeoutError'
+          ? 'Mesurado engine timed out. Please retry.'
+          : 'Mesurado engine is scaling or unreachable.';
+        const code = e?.name === 'TimeoutError' ? 504 : 502;
+        jsonError(res, msg, 'server_error', code);
         return;
       }
 
@@ -262,14 +241,12 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         return;
       }
 
-      // ── 11. Read plain-text chunked response from engine ─────────────────
-      // Engine streams transfer-encoding: chunked, content-type: text/plain
-      let aiContent = '';
-      const chatId = generateChatId();
+      // ── 12. Read / stream response ───────────────────────────────────────
+      let aiContent   = '';
+      const chatId    = generateChatId();
       const createdAt = Math.floor(Date.now() / 1000);
 
       if (stream) {
-        // ── 12a. Streaming: pipe engine chunks → OpenAI SSE format ───────────
         res.set({
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -280,7 +257,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
       }
 
       if (aiRes.body) {
-        const reader = (aiRes.body as ReadableStream<Uint8Array>).getReader();
+        const reader  = (aiRes.body as ReadableStream<Uint8Array>).getReader();
         const decoder = new TextDecoder();
         try {
           while (true) {
@@ -291,9 +268,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
               aiContent += text;
               if (stream && !res.destroyed) {
                 const sseChunk = JSON.stringify({
-                  id: chatId,
-                  object: 'chat.completion.chunk',
-                  created: createdAt,
+                  id: chatId, object: 'chat.completion.chunk', created: createdAt,
                   model: 'mesurado-1.0-lite',
                   choices: [{ index: 0, delta: { content: text }, finish_reason: null }],
                 });
@@ -306,83 +281,62 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
             aiContent += tail;
             if (stream && !res.destroyed) {
               const sseChunk = JSON.stringify({
-                id: chatId,
-                object: 'chat.completion.chunk',
-                created: createdAt,
+                id: chatId, object: 'chat.completion.chunk', created: createdAt,
                 model: 'mesurado-1.0-lite',
                 choices: [{ index: 0, delta: { content: tail }, finish_reason: null }],
               });
               res.write(`data: ${sseChunk}\n\n`);
             }
           }
+        } catch (readErr: unknown) {
+          // AbortError during stream read = client disconnected mid-stream
+          const e = readErr as { name?: string };
+          if (e?.name !== 'AbortError') throw readErr;
+          // Client gone — do not send a response; finally handles cleanup
+          return;
         } finally {
           reader.releaseLock();
         }
       }
 
-      if (stream) {
-        release();
-        release = null;
+      // Release slot before billing
+      await releaseSlot();
 
-        const completionTokens = countTokens(aiContent);
-        const actualTotal = promptTokens + completionTokens;
-        const costDebit = calcCost(actualTotal);
-        const finalBalance = Math.max(0, tokensRemaining - actualTotal);
-        const newTotalUsed = Number(prefs.mesurado_total_tokens_used ?? 0) + actualTotal;
-
-        try {
-          await Promise.all([
-            users.updatePrefs(userId, { ...prefs, mesurado_tokens_remaining: finalBalance, mesurado_total_tokens_used: newTotalUsed }),
-            databases.createDocument(DATABASE_ID, COLLECTIONS.USAGE_LOGS, ID.unique(), {
-              user_id: userId, key_id: keyDoc.$id, source: 'api',
-              prompt_tokens: promptTokens, completion_tokens: completionTokens,
-              cost_debit: costDebit, timestamp: new Date().toISOString(),
-            }),
-          ]);
-        } catch (billingErr) {
-          req.log.error({ err: billingErr, userId }, '[billing] token deduction failed after stream — manual review needed');
-        }
-        reconciled = true;
-
-        if (!res.destroyed) { res.write('data: [DONE]\n\n'); res.end(); }
-        return;
-      }
-
-      // ── 12b. Non-streaming: aiContent buffered above ──────────────────────
-
-      // Release slot — we have the full response in memory now
-      release();
-      release = null;
-
-      // Finalize token accounting
+      // ── 13. Reconcile billing ────────────────────────────────────────────
       const completionTokens = countTokens(aiContent);
-      const actualTotal = promptTokens + completionTokens;
-      const costDebit = calcCost(actualTotal);
-      const finalBalance = Math.max(0, tokensRemaining - actualTotal);
-      const newTotalUsed = Number(prefs.mesurado_total_tokens_used ?? 0) + actualTotal;
+      const actualTotal      = promptTokens + completionTokens;
+      const costDebit        = calcCost(actualTotal);
+      const finalBalance     = Math.max(0, tokensRemaining - actualTotal);
+      const newTotalUsed     = Number(prefs.mesurado_total_tokens_used ?? 0) + actualTotal;
 
       try {
         await Promise.all([
           users.updatePrefs(userId, {
             ...prefs,
-            mesurado_tokens_remaining: finalBalance,
+            mesurado_tokens_remaining:  finalBalance,
             mesurado_total_tokens_used: newTotalUsed,
           }),
           databases.createDocument(DATABASE_ID, COLLECTIONS.USAGE_LOGS, ID.unique(), {
-            user_id: userId,
-            key_id: keyDoc.$id,
-            source: 'api',
-            prompt_tokens: promptTokens,
+            user_id:           userId,
+            key_id:            keyDoc.$id,
+            source:            'api',
+            prompt_tokens:     promptTokens,
             completion_tokens: completionTokens,
-            cost_debit: costDebit,
-            timestamp: new Date().toISOString(),
+            total_tokens:      actualTotal,
+            cost_debit:        costDebit,
+            timestamp:         new Date().toISOString(),
           }),
         ]);
       } catch (billingErr) {
         req.log.error({ err: billingErr, userId },
           '[billing] token deduction failed — manual review needed');
       }
-      reconciled = true; // billing phase complete (success or logged error)
+      reconciled = true;
+
+      if (stream) {
+        if (!res.destroyed) { res.write('data: [DONE]\n\n'); res.end(); }
+        return;
+      }
 
       res.json({
         id: generateChatId(),
@@ -394,13 +348,9 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         ],
         usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: actualTotal },
       });
+
     } finally {
-      // Always release the concurrency slot, even on unexpected exceptions.
-      // The slot's release function is one-shot (safe to call multiple times).
-      release?.();
-      release = null;
-      // If pre-charge was applied but billing was never reconciled (unexpected throw),
-      // restore the user's original balance so they are not over-debited.
+      await releaseSlot();
       if (preChargeApplied && !reconciled) {
         await users.updatePrefs(userId, {
           ...prefs,
@@ -408,6 +358,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         }).catch(e => req.log.error({ err: e }, '[billing] pre-charge rollback failed'));
       }
     }
+
   } catch (err) {
     req.log.error({ err }, '[POST /v1/chat/completions]');
     if (!res.headersSent) {

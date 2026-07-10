@@ -1,62 +1,63 @@
 ---
 name: Mesurado rate-limit + queue system
-description: Three-layer server-side protection for /api/playground/chat and /v1/chat/completions
+description: Pure Appwrite rate limiter and gatekeeper — architecture, atomicity approach, and known limitations.
 ---
 
-## What was built
+## Rate Limiter (`appwrite-rate-limiter.ts`)
 
-Three server-side protection layers added to both /api/playground/chat and /v1/chat/completions:
+**Strategy**: Fixed 60-second window; one Appwrite document per (userId, window).
 
-**Layer 1 — Per-user rate limit**
-- Redis INCR+EXPIRE pattern (60s window)
-- Playground: rate-limited by userId; v1: by API key document ID with userId override lookup
-- Free users: 10 req/min; Paid: 60 req/min (env overridable via RATE_LIMIT_FREE_PER_MINUTE etc.)
-- Admin can set per-user override stored at `rate_limit_override:{userId}` in Redis
-- Falls back to in-memory Map if Redis/Upstash unavailable
+**Atomicity**: Document IDs are deterministic — `sha1("${userId}|${windowStartISO}").slice(0,36)`.
+- First request in a window calls `createDocument(docId, count=1)`.
+- If 409 conflict (another request beat it), falls through to `getDocument(docId)` → increment.
+- Worst-case drift: ±1 per concurrent pair on the read+increment path. Acceptable for throttling.
+- Appwrite enforces document-ID uniqueness at storage level, preventing duplicate window docs.
 
-**Layer 2 — Global concurrency queue**
-- In-memory Promise-based semaphore (single-process, reliable for persistent Node.js server)
-- MAX_CONCURRENT_GATEKEEPER=3 slots; MAX_QUEUE_SIZE=10; QUEUE_TIMEOUT_MS=20000
-- FIFO — oldest queued request gets next slot; queue is drained in drain() after each release
-- `gatekeeperQueue.acquire()` returns one-shot release(); release() guaranteed via try/finally
+**Fail-open**: Any Appwrite error allows the request through (users not locked out during outage).
 
-**Layer 3 — Per-request timeout**
-- setTimeout inside the queue rejects the waiting Promise after TIMEOUT_MS
+**Overrides**: `rate_limit_overrides` collection lets admins set per-user custom limits.
 
-## Billing safety
+**Rate limit keys**: playground uses `session.userId`; v1 API uses `key_${keyDoc.$id}`.
 
-Pre-charge rollback is guaranteed on ALL failure paths:
-- `preChargeApplied` flag: set true after Appwrite updatePrefs for pre-charge succeeds
-- `reconciled` flag: set true after billing block runs (success or logged error)
-- In try/finally: if preChargeApplied && !reconciled → restore original balance via updatePrefs
+## Gatekeeper (`appwrite-gatekeeper.ts`)
 
-## Streaming (playground)
+**Strategy**: Single `gatekeeper_slots` document (`$id="global"`) with `active_count` integer.
 
-SSE format: `data: {type, ...}\n\n`
-Events: queue | start | token | done | error | [DONE]
-Buffer full completion text for billing; release concurrency slot BEFORE billing
+**Atomicity limitation**: Appwrite has no CAS/transaction support. Read-modify-write can drift ±1 under heavy concurrency.
 
-## v1 streaming
+**Self-healing**: If `updated_at` is older than 270s (3× the 90s AI timeout), the counter is reset to 0 on the next acquire. This prevents crashed requests from permanently blocking capacity.
 
-stream=true: forwards raw Ollama SSE chunks verbatim (OpenAI-compatible format)
-stream=false: buffers full response, returns OpenAI JSON format
+**Acquire**: If `active_count >= max_count` → immediate 429 (no queuing). Increments count then proceeds.
 
-## FetchResponse type alias
+**Release**: Always in a `finally` block via `releaseSlot()` closure that prevents double-release with a boolean guard. Clamps to 0 on decrement.
 
-Both playground.ts and v1.ts: `type FetchResponse = Awaited<ReturnType<typeof fetch>>`
-Prevents name collision with Express's Response import.
+**Fail-open**: Any Appwrite error allows the request through.
 
-## New files
+**Slot doc auto-create**: If the document doesn't exist (404), it's created automatically.
 
-- src/lib/redis.ts — Upstash REST client + in-memory Map fallback
-- src/lib/rate-limiter.ts — checkRateLimit(), setRateLimitHeaders(), override CRUD
-- src/lib/gatekeeper-queue.ts — GatekeeperQueue singleton, QueueFullError, QueueTimeoutError
-- src/routes/admin-queue.ts — GET queue-status, POST clear-queue, POST adjust-rate-limit
+## AbortController (routes)
 
-## Admin endpoints (require Administrator Appwrite label)
+Both `playground.ts` and `v1.ts`:
+- Create an `AbortController` per request.
+- `req.on('close', () => { abortController.abort(); releaseSlot(); })` — cancels upstream AI fetch immediately on client disconnect.
+- Fetch signal: `AbortSignal.any([AbortSignal.timeout(90_000), abortController.signal])`.
+- `AbortError` from `abortController.signal` is caught silently (client already gone); `TimeoutError` → 504.
+- Stream reads that throw `AbortError` → bail out silently; `finally` block releases slot and rolls back billing.
 
-- GET /api/admin/queue-status
-- POST /api/admin/clear-queue
-- POST /api/admin/adjust-rate-limit — body: {user_id, new_limit, action: "set"|"clear"}
+## Billing (both routes)
 
-**Why in-memory queue:** This is a persistent Node.js server (not Vercel serverless), so in-memory state survives across requests within the same process. Redis is used for rate limits (atomic, distributed-safe) but queue liveness is handled in-process.
+- Pre-charge applied before slot acquire (v1) or before AI fetch (playground).
+- `reconciled` boolean guards rollback: if the `finally` block runs before billing completes, pre-charge is restored.
+- Double-release guard: `slotReleased` boolean prevents `releaseSlot()` from decrementing twice.
+- Slot is released _before_ the final billing call so next queued request can proceed immediately.
+
+## Collection schema
+
+- `rate_limits`: `user_id`, `window_start`, `request_count`, `window_expires` — doc ID is sha1 hash.
+- `gatekeeper_slots`: `slot_id`, `active_count`, `max_count`, `updated_at` — single `global` doc.
+- `rate_limit_overrides`: `user_id`, `override_limit`, `updated_at`.
+- `request_queue`: present in schema (provisioned) but not used — reserved for future queue worker.
+- `usage_logs`: extended with `total_tokens` column.
+
+**Why:**
+Previous design used in-memory semaphore + Redis write-through which didn't survive cold starts or multi-instance deployment. Pure Appwrite approach is durable at the cost of ±1 precision under concurrency, which is acceptable for rate limiting.
