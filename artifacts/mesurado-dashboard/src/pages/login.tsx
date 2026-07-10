@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 const FEATURES = [
   { icon: Zap,    text: 'OpenAI-compatible API — drop-in replacement' },
   { icon: Globe,  text: 'Live web search for real-time Liberian news & data' },
-  { icon: Shield, text: '1,000,000 free tokens — no card required' },
+  { icon: Shield, text: '100,000 free tokens — no card required' },
 ];
 
 export default function LoginPage() {
@@ -159,7 +159,7 @@ export default function LoginPage() {
                 Create a free account →
               </Link>
             </p>
-            <p className="text-xs text-muted-foreground mt-1">1,000,000 free tokens — no card required</p>
+            <p className="text-xs text-muted-foreground mt-1">100,000 free tokens — no card required</p>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">

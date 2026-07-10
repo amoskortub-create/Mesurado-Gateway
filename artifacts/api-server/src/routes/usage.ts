@@ -15,7 +15,7 @@ router.get('/usage', async (req: Request, res: Response) => {
 
     const user = await users.get(session.userId);
     const prefs = (user.prefs ?? {}) as Record<string, number | string>;
-    const tokensRemaining = Number(prefs.mesurado_tokens_remaining ?? 1_000_000);
+    const tokensRemaining = Number(prefs.mesurado_tokens_remaining ?? 100_000);
     const totalTokensUsed = Number(prefs.mesurado_total_tokens_used ?? 0);
     const plan = (String(prefs.mesurado_plan ?? 'free')) as 'free' | 'payg';
 

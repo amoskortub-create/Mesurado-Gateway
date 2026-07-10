@@ -46,7 +46,7 @@ export default function OverviewPage() {
         <MetricCard
           title="Current Plan"
           value={isPaidUser ? 'Pay-As-You-Go' : 'Free'}
-          subtitle={isPaidUser ? '$0.75 / 1M tokens' : '1M tokens included'}
+          subtitle={isPaidUser ? '$0.75 / 1M tokens' : '100K tokens included'}
           variant="navy"
           icon={<Star size={20} />}
           badge={isPaidUser ? 'Live Search ✓' : 'Free Tier'}
@@ -67,7 +67,7 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: isPaidUser ? 'Plan' : 'Free Allocation', value: isPaidUser ? 'Pay-As-You-Go' : '1,000,000' },
+          { label: isPaidUser ? 'Plan' : 'Free Allocation', value: isPaidUser ? 'Pay-As-You-Go' : '100,000' },
           { label: 'Rate', value: '$0.75 / 1M tokens' },
           { label: 'Pct. Used', value: totalTokensUsed > 0 ? `${((totalTokensUsed / (totalTokensUsed + tokensRemaining)) * 100).toFixed(1)}%` : '0.0%' },
           { label: 'Est. Value Used', value: `$${(totalTokensUsed * 0.75 / 1_000_000).toFixed(4)}` },

@@ -42,7 +42,7 @@ export type UserPrefs = {
 };
 
 export const DEFAULT_PREFS: UserPrefs = {
-  mesurado_tokens_remaining: 1_000_000,
+  mesurado_tokens_remaining: 100_000,
   mesurado_plan: 'free',
   mesurado_total_tokens_used: 0,
   mesurado_total_purchased: 0,

@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 const FEATURES = [
   { icon: Zap,    text: 'OpenAI-compatible API — drop-in replacement' },
   { icon: Globe,  text: 'Live web search for real-time Liberian news & data' },
-  { icon: Shield, text: '1,000,000 free tokens — no card required' },
+  { icon: Shield, text: '100,000 free tokens — no card required' },
 ];
 
 function strengthScore(p: string): number {
@@ -82,7 +82,7 @@ export default function SignupPage() {
               <span style={{ color: 'hsl(217 72% 65%)' }}>for free</span>
             </h2>
             <p className="text-sm leading-relaxed mb-8" style={{ color: 'hsl(213 27% 65%)' }}>
-              Get 1,000,000 tokens immediately. No credit card needed.
+              Get 100,000 tokens immediately. No credit card needed.
             </p>
             <ul className="space-y-3">
               {FEATURES.map(f => (

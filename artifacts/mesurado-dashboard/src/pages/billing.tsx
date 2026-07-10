@@ -4,7 +4,7 @@ import { useUsage } from '@/hooks/use-usage';
 import { formatNumber, COST_PER_TOKEN } from '@/lib/utils';
 
 const FREE_FEATURES = [
-  { label: '1,000,000 tokens (lifetime, non-renewable)', included: true },
+  { label: '100,000 tokens (lifetime, non-renewable)', included: true },
   { label: 'Full API access via /v1/chat/completions', included: true },
   { label: 'Playground access for testing', included: true },
   { label: 'Usage analytics & logs', included: true },
@@ -28,7 +28,7 @@ const PAYG_FEATURES = [
 export default function BillingPage() {
   const { tokensRemaining, totalTokensUsed, plan, loading, error, refetch } = useUsage();
   const isPaidUser = plan === 'payg';
-  const total = isPaidUser ? (tokensRemaining + totalTokensUsed) : 1_000_000;
+  const total = isPaidUser ? (tokensRemaining + totalTokensUsed) : 100_000;
   const pct = total > 0 ? Math.min(100, (totalTokensUsed / total) * 100) : 0;
   const estimatedCost = totalTokensUsed * COST_PER_TOKEN;
 
@@ -64,7 +64,7 @@ export default function BillingPage() {
               {loading ? '…' : isPaidUser ? 'Pay-As-You-Go' : 'Free Plan'}
             </h3>
             <p className="text-sm text-muted-foreground">
-              {isPaidUser ? '$0.75 / 1M tokens — no commitment' : '1,000,000 tokens — non-renewable'}
+              {isPaidUser ? '$0.75 / 1M tokens — no commitment' : '100,000 tokens — non-renewable'}
             </p>
           </div>
           <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 md:px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 flex-shrink-0">
