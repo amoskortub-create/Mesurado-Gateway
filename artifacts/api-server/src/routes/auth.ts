@@ -39,8 +39,8 @@ router.post('/login', async (req: Request, res: Response) => {
     res.cookie(SESSION_COOKIE, token, COOKIE_OPTS);
 
     const { users } = createAdminClient();
-    const user = await users.get(userId);
-    const role = Array.isArray(user.labels) && user.labels.includes('Administrator') ? 'Administrator' : 'user';
+    const [user, admin] = await Promise.all([users.get(userId), isAdminUser(userId)]);
+    const role = admin ? 'Administrator' : 'user';
     res.json({ success: true, userId, email, name: user.name, role });
   } catch (err) {
     req.log.error({ err }, '[POST /api/auth/login]');
