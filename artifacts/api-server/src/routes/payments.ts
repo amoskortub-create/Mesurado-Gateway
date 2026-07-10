@@ -58,8 +58,8 @@ router.post('/generate', async (req: Request, res: Response) => {
   const session = await requireSession(req, res);
   if (!session) return;
 
-  if (!checkRateLimit('payment_generate', session.userId, 5, 60 * 60 * 1000)) {
-    const secs = retryAfterSeconds('payment_generate', session.userId);
+  if (!await checkRateLimit('payment_generate', session.userId, 5, 60 * 60 * 1000)) {
+    const secs = await retryAfterSeconds('payment_generate', session.userId);
     res.status(429).json({
       error: `Too many payment requests. Try again in ${Math.ceil(secs / 60)} minute(s).`,
     });

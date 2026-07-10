@@ -264,7 +264,11 @@ router.post('/chat', async (req: Request, res: Response) => {
       try {
         aiRes = await fetch(`${coreUrl}/v1/chat/completions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Mesurado-Auth': masterToken },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Mesurado-Auth': masterToken,
+            'Origin': `https://${process.env.MESURADO_DOMAIN ?? 'mesurado.mediatechliberia.online'}`,
+          },
           body: JSON.stringify({
             model: 'mesurado-llama3.2-3b',
             messages: fullMessages,

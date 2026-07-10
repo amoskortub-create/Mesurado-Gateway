@@ -15,5 +15,5 @@ export async function hashApiKey(keyString: string): Promise<string> {
 }
 
 export function keyPrefix(keyString: string): string {
-  return keyString.slice(0, 24);
+  return keyString.slice(0, 16);
 }

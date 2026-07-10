@@ -1,17 +1,10 @@
-/** Simple in-memory rate limiter. Resets when the window expires. */
-
-interface Entry {
-  count: number;
-  resetAt: number;
-}
-
-const stores = new Map<string, Map<string, Entry>>();
-
-function getStore(namespace: string): Map<string, Entry> {
-  let s = stores.get(namespace);
-  if (!s) { s = new Map(); stores.set(namespace, s); }
-  return s;
-}
+/**
+ * Appwrite-backed rate limiter for payment routes.
+ *
+ * Delegates to redis.ts (which persists to Appwrite) so state
+ * survives process restarts. The interface is async to match.
+ */
+import { redis } from './redis.js';
 
 /**
  * Returns true if the action is allowed, false if rate-limited.
@@ -20,29 +13,21 @@ function getStore(namespace: string): Map<string, Entry> {
  * @param limit       Max allowed calls in the window
  * @param windowMs    Window size in milliseconds
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   namespace: string,
   key: string,
   limit: number,
   windowMs: number,
-): boolean {
-  const now = Date.now();
-  const store = getStore(namespace);
-  const entry = store.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    store.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-
-  if (entry.count >= limit) return false;
-  entry.count += 1;
-  return true;
+): Promise<boolean> {
+  const windowSec = Math.ceil(windowMs / 1000);
+  const storeKey = `rl:${namespace}:${key}`;
+  const count = await redis.incr(storeKey);
+  if (count === 1) await redis.expire(storeKey, windowSec);
+  return count <= limit;
 }
 
 /** How many seconds until the current window resets for a key */
-export function retryAfterSeconds(namespace: string, key: string): number {
-  const entry = getStore(namespace).get(key);
-  if (!entry) return 0;
-  return Math.max(0, Math.ceil((entry.resetAt - Date.now()) / 1000));
+export async function retryAfterSeconds(namespace: string, key: string): Promise<number> {
+  const ttl = await redis.ttl(`rl:${namespace}:${key}`);
+  return Math.max(0, ttl);
 }
