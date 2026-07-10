@@ -262,12 +262,14 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         return;
       }
 
-      // ── 11. Parse engine response (flat JSON) ─────────────────────────────
-      const aiData = await aiRes.json() as { response?: string; text?: string; output?: string; choices?: { message?: { content?: string } }[] };
-      const aiContent = aiData.response ?? aiData.text ?? aiData.output ?? aiData.choices?.[0]?.message?.content ?? '';
+      // ── 11. Read plain-text chunked response from engine ─────────────────
+      // Engine streams transfer-encoding: chunked, content-type: text/plain
+      let aiContent = '';
+      const chatId = generateChatId();
+      const createdAt = Math.floor(Date.now() / 1000);
 
-      // ── 12a. Streaming response (synthesise SSE from full response) ────────
       if (stream) {
+        // ── 12a. Streaming: pipe engine chunks → OpenAI SSE format ───────────
         res.set({
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -275,18 +277,50 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
           'X-Accel-Buffering': 'no',
         });
         res.flushHeaders();
+      }
 
-        if (aiContent) {
-          const chunk = JSON.stringify({
-            id: generateChatId(),
-            object: 'chat.completion.chunk',
-            created: Math.floor(Date.now() / 1000),
-            model: 'mesurado-llama3.2-3b',
-            choices: [{ index: 0, delta: { content: aiContent }, finish_reason: null }],
-          });
-          if (!res.destroyed) res.write(`data: ${chunk}\n\n`);
+      if (aiRes.body) {
+        const reader = (aiRes.body as ReadableStream<Uint8Array>).getReader();
+        const decoder = new TextDecoder();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const text = decoder.decode(value, { stream: true });
+            if (text) {
+              aiContent += text;
+              if (stream && !res.destroyed) {
+                const sseChunk = JSON.stringify({
+                  id: chatId,
+                  object: 'chat.completion.chunk',
+                  created: createdAt,
+                  model: 'mesurado-llama3.2-3b',
+                  choices: [{ index: 0, delta: { content: text }, finish_reason: null }],
+                });
+                res.write(`data: ${sseChunk}\n\n`);
+              }
+            }
+          }
+          const tail = decoder.decode();
+          if (tail) {
+            aiContent += tail;
+            if (stream && !res.destroyed) {
+              const sseChunk = JSON.stringify({
+                id: chatId,
+                object: 'chat.completion.chunk',
+                created: createdAt,
+                model: 'mesurado-llama3.2-3b',
+                choices: [{ index: 0, delta: { content: tail }, finish_reason: null }],
+              });
+              res.write(`data: ${sseChunk}\n\n`);
+            }
+          }
+        } finally {
+          reader.releaseLock();
         }
+      }
 
+      if (stream) {
         release();
         release = null;
 
@@ -315,8 +349,7 @@ router.post('/chat/completions', async (req: Request, res: Response) => {
         return;
       }
 
-      // ── 12b. Non-streaming ─────────────────────────────────────────────────
-      // (aiContent already parsed above)
+      // ── 12b. Non-streaming: aiContent buffered above ──────────────────────
 
       // Release slot — we have the full response in memory now
       release();

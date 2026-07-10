@@ -299,10 +299,32 @@ router.post('/chat', async (req: Request, res: Response) => {
         return;
       }
 
-      // ── 13. Parse response and stream tokens to client ───────────────────
-      const aiData = await aiRes.json() as { response?: string; text?: string; output?: string; choices?: { message?: { content?: string } }[] };
-      const completionText = aiData.response ?? aiData.text ?? aiData.output ?? aiData.choices?.[0]?.message?.content ?? '';
-      if (completionText && !res.destroyed) sendEvent(res, { type: 'token', content: completionText });
+      // ── 13. Stream plain-text chunks from engine to client ───────────────
+      // Engine returns transfer-encoding: chunked, content-type: text/plain
+      let completionText = '';
+      if (aiRes.body) {
+        const reader = (aiRes.body as ReadableStream<Uint8Array>).getReader();
+        const decoder = new TextDecoder();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            if (chunk) {
+              completionText += chunk;
+              if (!res.destroyed) sendEvent(res, { type: 'token', content: chunk });
+            }
+          }
+          // Flush any remaining bytes held by the decoder
+          const tail = decoder.decode();
+          if (tail) {
+            completionText += tail;
+            if (!res.destroyed) sendEvent(res, { type: 'token', content: tail });
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      }
 
       // Slot is released here — before billing — so queued requests can start.
       release();
