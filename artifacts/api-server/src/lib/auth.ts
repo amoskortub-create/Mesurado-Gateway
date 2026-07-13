@@ -15,9 +15,17 @@ async function getHmacKey(): Promise<CryptoKey> {
   );
 }
 
+/** Generate a cryptographically random 16-byte token ID (jti). */
+function generateJti(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Buffer.from(bytes).toString('base64url');
+}
+
 export async function signToken(userId: string, email: string): Promise<string> {
   const key = await getHmacKey();
-  const payload = JSON.stringify({ userId, email, iat: Date.now() });
+  // jti (JWT ID) makes every token unique, enabling future per-token revocation
+  const payload = JSON.stringify({ userId, email, iat: Date.now(), jti: generateJti() });
   const payloadB64 = Buffer.from(payload).toString('base64url');
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payloadB64));
   return `${payloadB64}.${Buffer.from(sig).toString('base64url')}`;

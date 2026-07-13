@@ -22,7 +22,36 @@ app.use(
   }),
 );
 
-app.use(cors({ credentials: true, origin: true }));
+// Restrict CORS to known origins only.
+// The public v1 API uses explicit per-route CORS headers (Access-Control-Allow-Origin: *)
+// so the session-cookie routes never allow cross-origin credentials from arbitrary sites.
+const ALLOWED_ORIGINS = (() => {
+  const domain = process.env.MESURADO_DOMAIN;
+  const origins = new Set<string>([
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://localhost:22802',
+  ]);
+  if (domain) {
+    origins.add(`https://${domain}`);
+    origins.add(`http://${domain}`);
+  }
+  return origins;
+})();
+
+app.use(
+  cors({
+    credentials: true,
+    origin: (incomingOrigin, callback) => {
+      // Allow same-origin requests (no Origin header) and Replit dev preview
+      if (!incomingOrigin) return callback(null, true);
+      if (ALLOWED_ORIGINS.has(incomingOrigin)) return callback(null, true);
+      // Allow *.replit.dev and *.replit.app for the dev preview proxy
+      if (/\.replit\.(dev|app)$/.test(incomingOrigin)) return callback(null, true);
+      callback(new Error(`CORS: origin not allowed — ${incomingOrigin}`));
+    },
+  }),
+);
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
