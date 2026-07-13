@@ -1,21 +1,24 @@
-import express, { type Express } from "express";
+import express from "express";
+import type { Application } from "express";
 import cors from "cors";
+import type { CorsOptionsDelegate } from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import router from "./routes/index.js";
 import v1Router from "./routes/v1.js";
 import { logger } from "./lib/logger.js";
 
-const app: Express = express();
+const app: Application = express();
 
 app.use(
   pinoHttp({
     logger,
     serializers: {
-      req(req) {
+      req(req: IncomingMessage & { id?: unknown }) {
         return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
       },
-      res(res) {
+      res(res: ServerResponse) {
         return { statusCode: res.statusCode };
       },
     },
@@ -39,19 +42,16 @@ const ALLOWED_ORIGINS = (() => {
   return origins;
 })();
 
-app.use(
-  cors({
-    credentials: true,
-    origin: (incomingOrigin, callback) => {
-      // Allow same-origin requests (no Origin header) and Replit dev preview
-      if (!incomingOrigin) return callback(null, true);
-      if (ALLOWED_ORIGINS.has(incomingOrigin)) return callback(null, true);
-      // Allow *.replit.dev and *.replit.app for the dev preview proxy
-      if (/\.replit\.(dev|app)$/.test(incomingOrigin)) return callback(null, true);
-      callback(new Error(`CORS: origin not allowed — ${incomingOrigin}`));
-    },
-  }),
-);
+const corsOrigin: CorsOptionsDelegate = (req, callback) => {
+  const origin = (req as IncomingMessage & { headers: { origin?: string } }).headers.origin;
+  if (!origin) return callback(null, { origin: true });
+  if (ALLOWED_ORIGINS.has(origin)) return callback(null, { origin: true });
+  // Allow *.replit.dev and *.replit.app for the dev preview proxy
+  if (/\.replit\.(dev|app)$/.test(origin)) return callback(null, { origin: true });
+  callback(new Error(`CORS: origin not allowed — ${origin}`));
+};
+
+app.use(cors({ credentials: true, origin: corsOrigin }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
