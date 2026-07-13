@@ -204,7 +204,7 @@ router.post('/proof', upload.single('screenshot'), async (req: Request, res: Res
         inputFile as Parameters<typeof storage.createFile>[2],
       );
       screenshotFileId = uploaded.$id;
-      screenshotUrl = `${process.env.APPWRITE_ENDPOINT}/storage/buckets/${STORAGE_BUCKET_ID}/files/${uploaded.$id}/view?project=${process.env.APPWRITE_PROJECT_ID}`;
+      screenshotUrl = `${APPWRITE_ENDPOINT}/storage/buckets/${STORAGE_BUCKET_ID}/files/${uploaded.$id}/view?project=${APPWRITE_PROJECT_ID}`;
     } catch (uploadErr) {
       req.log.error({ uploadErr }, '[payments/proof] screenshot upload failed');
       res.status(503).json({
