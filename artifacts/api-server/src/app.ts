@@ -1,7 +1,6 @@
 import express from "express";
 import type { Application } from "express";
 import cors from "cors";
-import type { CorsOptionsDelegate } from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -42,12 +41,11 @@ const ALLOWED_ORIGINS = (() => {
   return origins;
 })();
 
-const corsOrigin: CorsOptionsDelegate = (req, callback) => {
-  const origin = (req as IncomingMessage & { headers: { origin?: string } }).headers.origin;
-  if (!origin) return callback(null, { origin: true });
-  if (ALLOWED_ORIGINS.has(origin)) return callback(null, { origin: true });
+const corsOrigin = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  if (!origin) return callback(null, true);
+  if (ALLOWED_ORIGINS.has(origin)) return callback(null, true);
   // Allow *.replit.dev and *.replit.app for the dev preview proxy
-  if (/\.replit\.(dev|app)$/.test(origin)) return callback(null, { origin: true });
+  if (/\.replit\.(dev|app)$/.test(origin)) return callback(null, true);
   callback(new Error(`CORS: origin not allowed — ${origin}`));
 };
 

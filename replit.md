@@ -82,6 +82,7 @@ lib/
 - The API server build step (`pnpm run build`) compiles TypeScript via esbuild before `start`; the dev workflow runs both automatically.
 - `APPWRITE_PROJECT_ID` must be set before auth or any Appwrite-backed route will work.
 - `MESURADO_CORE_URL` (`https://ai.mediatechliberia.online`) is configured but not yet live — AI chat routes will return 502 until the inference server is running.
+- The Appwrite API key currently lacks permission to read the rate-limit cache collection (`[redis] Could not load from Appwrite... user_unauthorized` on startup). The server falls back to an empty in-memory cache, so it still runs, but persisted rate-limit/queue state won't survive a restart until the key's scopes are fixed.
 
 ## Pointers
 
