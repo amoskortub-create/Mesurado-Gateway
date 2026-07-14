@@ -2,7 +2,7 @@ import express from "express";
 import type { Application } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import pinoHttp from "pino-http";
+import { pinoHttp } from "pino-http";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import router from "./routes/index.js";
 import v1Router from "./routes/v1.js";
