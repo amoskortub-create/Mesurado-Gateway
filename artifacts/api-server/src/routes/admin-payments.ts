@@ -1,4 +1,4 @@
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod/v4';
 import {
   createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query, isAdminUser,
@@ -10,12 +10,12 @@ const router = Router();
 
 // ── Admin middleware ───────────────────────────────────────────────────────────
 
-interface AdminRequest extends Request {
+interface AdminRequest extends express.Request {
   adminUserId: string;
   adminEmail: string;
 }
 
-async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+async function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void> {
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await getSession(token);
   if (!session) {
@@ -36,7 +36,7 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction): Pr
 
 // ── GET /api/admin/payments ───────────────────────────────────────────────────
 
-router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
+router.get('/payments', requireAdmin, async (req, res) => {
   const status = typeof req.query.status === 'string' ? req.query.status : 'paid';
   const page = Math.max(1, Number(req.query.page ?? 1));
   const limit = Math.min(50, Math.max(1, Number(req.query.limit ?? 25)));
@@ -91,7 +91,7 @@ router.get('/payments', requireAdmin, async (req: Request, res: Response) => {
 
 // ── POST /api/admin/payments/approve ─────────────────────────────────────────
 
-router.post('/payments/approve', requireAdmin, async (req: Request, res: Response) => {
+router.post('/payments/approve', requireAdmin, async (req, res) => {
   const schema = z.object({
     payment_id: z.string().min(1),
     admin_note: z.string().max(1000).optional().default(''),
@@ -179,7 +179,7 @@ router.post('/payments/approve', requireAdmin, async (req: Request, res: Respons
 
 // ── POST /api/admin/payments/reject ──────────────────────────────────────────
 
-router.post('/payments/reject', requireAdmin, async (req: Request, res: Response) => {
+router.post('/payments/reject', requireAdmin, async (req, res) => {
   const schema = z.object({
     payment_id: z.string().min(1),
     admin_note: z.string().min(1, 'Rejection reason is required').max(1000),

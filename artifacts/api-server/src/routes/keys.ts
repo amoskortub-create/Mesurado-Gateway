@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod/v4';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
@@ -6,7 +6,7 @@ import { hashApiKey, keyPrefix } from '../lib/key-hash.js';
 
 const router = Router();
 
-async function requireSession(req: Request, res: Response): Promise<{ userId: string; email: string } | null> {
+async function requireSession(req: express.Request, res: express.Response): Promise<{ userId: string; email: string } | null> {
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await getSession(token);
   if (!session) { res.status(401).json({ error: 'Unauthorized' }); return null; }
@@ -21,7 +21,7 @@ function generateKeyString(): string {
 }
 
 // GET /api/keys/list
-router.get('/list', async (req: Request, res: Response) => {
+router.get('/list', async (req, res) => {
   const session = await requireSession(req, res);
   if (!session) return;
 
@@ -49,7 +49,7 @@ router.get('/list', async (req: Request, res: Response) => {
 });
 
 // POST /api/keys/generate
-router.post('/generate', async (req: Request, res: Response) => {
+router.post('/generate', async (req, res) => {
   const session = await requireSession(req, res);
   if (!session) return;
 
@@ -83,7 +83,7 @@ router.post('/generate', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/keys/delete
-router.delete('/delete', async (req: Request, res: Response) => {
+router.delete('/delete', async (req, res) => {
   const session = await requireSession(req, res);
   if (!session) return;
 
@@ -118,7 +118,7 @@ router.delete('/delete', async (req: Request, res: Response) => {
 });
 
 // POST /api/keys/deactivate
-router.post('/deactivate', async (req: Request, res: Response) => {
+router.post('/deactivate', async (req, res) => {
   const session = await requireSession(req, res);
   if (!session) return;
 
@@ -158,7 +158,7 @@ router.post('/deactivate', async (req: Request, res: Response) => {
 });
 
 // POST /api/keys/reactivate
-router.post('/reactivate', async (req: Request, res: Response) => {
+router.post('/reactivate', async (req, res) => {
   const session = await requireSession(req, res);
   if (!session) return;
 

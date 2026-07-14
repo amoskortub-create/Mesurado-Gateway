@@ -12,7 +12,7 @@
  * GET  /api/admin/rate-limits             — paginated rate limit history
  */
 
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod/v4';
 import { isAdminUser } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
@@ -30,7 +30,7 @@ const router = Router();
 
 // ─── Admin middleware ─────────────────────────────────────────────────────────
 
-async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+async function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void> {
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await getSession(token);
   if (!session) {
@@ -47,7 +47,7 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction): Pr
 
 // ─── GET /api/admin/queue-status ─────────────────────────────────────────────
 
-router.get('/queue-status', requireAdmin, async (_req: Request, res: Response) => {
+router.get('/queue-status', requireAdmin, async (_req, res) => {
   const slots = await getSlotsStatus();
   res.json({
     backend: 'appwrite',
@@ -67,7 +67,7 @@ router.get('/queue-status', requireAdmin, async (_req: Request, res: Response) =
 // ─── POST /api/admin/clear-queue ─────────────────────────────────────────────
 // Resets active_count to 0 in case a server crash left it stuck.
 
-router.post('/clear-queue', requireAdmin, async (req: Request, res: Response) => {
+router.post('/clear-queue', requireAdmin, async (req, res) => {
   try {
     const before = await getSlotsStatus();
     await resetSlots();
@@ -84,7 +84,7 @@ router.post('/clear-queue', requireAdmin, async (req: Request, res: Response) =>
 
 // ─── GET /api/admin/slots ─────────────────────────────────────────────────────
 
-router.get('/slots', requireAdmin, async (_req: Request, res: Response) => {
+router.get('/slots', requireAdmin, async (_req, res) => {
   const slots = await getSlotsStatus();
   res.json({
     activeSlots: slots.activeSlots,
@@ -96,7 +96,7 @@ router.get('/slots', requireAdmin, async (_req: Request, res: Response) => {
 
 // ─── POST /api/admin/slots/reset ─────────────────────────────────────────────
 
-router.post('/slots/reset', requireAdmin, async (req: Request, res: Response) => {
+router.post('/slots/reset', requireAdmin, async (req, res) => {
   try {
     const before = await getSlotsStatus();
     await resetSlots();
@@ -114,7 +114,7 @@ router.post('/slots/reset', requireAdmin, async (req: Request, res: Response) =>
 
 // ─── GET /api/admin/rate-limits ──────────────────────────────────────────────
 
-router.get('/rate-limits', requireAdmin, async (req: Request, res: Response) => {
+router.get('/rate-limits', requireAdmin, async (req, res) => {
   const userId   = typeof req.query.user_id === 'string' ? req.query.user_id : undefined;
   const page     = Math.max(1, Number(req.query.page ?? 1));
   const pageSize = Math.min(100, Math.max(1, Number(req.query.limit ?? 50)));
@@ -145,7 +145,7 @@ const adjustSchema = z.object({
   { message: 'new_limit is required when action is "set"' },
 );
 
-router.post('/adjust-rate-limit', requireAdmin, async (req: Request, res: Response) => {
+router.post('/adjust-rate-limit', requireAdmin, async (req, res) => {
   const parsed = adjustSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0].message });
@@ -182,7 +182,7 @@ router.post('/adjust-rate-limit', requireAdmin, async (req: Request, res: Respon
 
 // ─── GET /api/admin/rate-limit-override ──────────────────────────────────────
 
-router.get('/rate-limit-override', requireAdmin, async (req: Request, res: Response) => {
+router.get('/rate-limit-override', requireAdmin, async (req, res) => {
   const userId = typeof req.query.user_id === 'string' ? req.query.user_id : null;
   if (!userId) {
     res.status(400).json({ error: 'user_id query param required' });

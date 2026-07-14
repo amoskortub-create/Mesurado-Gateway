@@ -13,7 +13,7 @@
  * Token billing is reconciled after the stream completes.
  */
 
-import { Router, type Request, type Response } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod/v4';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
@@ -43,7 +43,7 @@ const bodySchema = z.object({
 
 // ─── SSE helpers ──────────────────────────────────────────────────────────────
 
-function initSse(res: Response): void {
+function initSse(res: express.Response): void {
   res.set({
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
@@ -53,17 +53,17 @@ function initSse(res: Response): void {
   res.flushHeaders();
 }
 
-function sendEvent(res: Response, data: Record<string, unknown>): void {
+function sendEvent(res: express.Response, data: Record<string, unknown>): void {
   if (!res.destroyed) res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-function sendDone(res: Response): void {
+function sendDone(res: express.Response): void {
   if (!res.destroyed) { res.write('data: [DONE]\n\n'); res.end(); }
 }
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
-router.post('/chat', async (req: Request, res: Response) => {
+router.post('/chat', async (req, res) => {
   // ── 1. Auth ────────────────────────────────────────────────────────────────
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await getSession(token);

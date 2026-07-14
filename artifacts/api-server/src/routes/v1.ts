@@ -14,7 +14,7 @@
  * AbortController propagates client disconnect to abort the upstream AI fetch.
  */
 
-import { Router, type Request, type Response } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod/v4';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/appwrite.js';
 import { countTokens, calcCost } from '../lib/token-utils.js';
@@ -57,19 +57,19 @@ function generateChatId(): string {
   return `chatcmpl-${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
-function jsonError(res: Response, message: string, type: string, status: number) {
+function jsonError(res: express.Response, message: string, type: string, status: number) {
   return res.status(status).set(CORS_HEADERS).json({ error: { message, type, code: status } });
 }
 
 // ─── OPTIONS preflight ────────────────────────────────────────────────────────
 
-router.options('/chat/completions', (_req: Request, res: Response) => {
+router.options('/chat/completions', (_req, res) => {
   res.set(CORS_HEADERS).status(204).end();
 });
 
 // ─── POST /v1/chat/completions ────────────────────────────────────────────────
 
-router.post('/chat/completions', async (req: Request, res: Response) => {
+router.post('/chat/completions', async (req, res) => {
   // ── 1. Auth ────────────────────────────────────────────────────────────────
   const authHeader = (req.headers.authorization as string) ?? '';
   const keyString  = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;

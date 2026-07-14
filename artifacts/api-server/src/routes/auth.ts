@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import express, { Router } from 'express';
 import { z } from 'zod/v4';
 import { createAdminClient, createAuthClient, DEFAULT_PREFS, isAdminUser } from '../lib/appwrite.js';
 import { signToken, getSession, SESSION_COOKIE } from '../lib/auth.js';
@@ -15,7 +15,7 @@ const COOKIE_OPTS = {
 };
 
 // POST /api/auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', async (req, res) => {
   const schema = z.object({ email: z.string().email(), password: z.string().min(1) });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) {
@@ -49,7 +49,7 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/signup
-router.post('/signup', async (req: Request, res: Response) => {
+router.post('/signup', async (req, res) => {
   const schema = z.object({
     email: z.string().email(),
     password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -87,13 +87,13 @@ router.post('/signup', async (req: Request, res: Response) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', (_req: Request, res: Response) => {
+router.post('/logout', (_req, res) => {
   res.clearCookie(SESSION_COOKIE, { path: '/' });
   res.json({ success: true });
 });
 
 // GET /api/auth/me
-router.get('/me', async (req: Request, res: Response) => {
+router.get('/me', async (req, res) => {
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await getSession(token);
   if (!session) {
@@ -104,7 +104,7 @@ router.get('/me', async (req: Request, res: Response) => {
 });
 
 // GET /api/auth/role — returns the user's role, used by the frontend to conditionally show Admin menu
-router.get('/role', async (req: Request, res: Response) => {
+router.get('/role', async (req, res) => {
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await getSession(token);
   if (!session) {

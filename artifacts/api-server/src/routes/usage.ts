@@ -1,11 +1,11 @@
-import { Router, type Request, type Response } from 'express';
+import express, { Router } from 'express';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, Query } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
 
 const router = Router();
 
 // GET /api/user/usage
-router.get('/usage', async (req: Request, res: Response) => {
+router.get('/usage', async (req, res) => {
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await getSession(token);
   if (!session) { res.status(401).json({ error: 'Unauthorized' }); return; }

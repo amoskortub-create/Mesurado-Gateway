@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import express, { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod/v4';
 import {
@@ -13,7 +13,7 @@ const router = Router();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-async function requireSession(req: Request, res: Response) {
+async function requireSession(req: express.Request, res: express.Response) {
   const token = req.cookies?.[SESSION_COOKIE];
   const session = await getSession(token);
   if (!session) { res.status(401).json({ error: 'Unauthorized' }); return null; }
@@ -55,7 +55,7 @@ const upload = multer({
 
 // ── POST /api/payments/generate ───────────────────────────────────────────────
 
-router.post('/generate', async (req: Request, res: Response) => {
+router.post('/generate', async (req, res) => {
   const session = await requireSession(req, res);
   if (!session) return;
 
@@ -139,7 +139,7 @@ router.post('/generate', async (req: Request, res: Response) => {
 
 // ── POST /api/payments/proof ──────────────────────────────────────────────────
 
-router.post('/proof', upload.single('screenshot'), async (req: Request, res: Response) => {
+router.post('/proof', upload.single('screenshot'), async (req, res) => {
   const session = await requireSession(req, res);
   if (!session) return;
 
@@ -251,7 +251,7 @@ router.post('/proof', upload.single('screenshot'), async (req: Request, res: Res
 
 // ── GET /api/payments/my-payments ─────────────────────────────────────────────
 
-router.get('/my-payments', async (req: Request, res: Response) => {
+router.get('/my-payments', async (req, res) => {
   const session = await requireSession(req, res);
   if (!session) return;
 
