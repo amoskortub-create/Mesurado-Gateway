@@ -2,7 +2,8 @@
   "extends": "./tsconfig.base.json",
   "compileOnSave": false,
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "noEmit": true
   },
   "include": ["api/**/*.ts"],
   "files": [],
