@@ -1,4 +1,4 @@
-import { Router, type Request, type Response, type NextFunction, type IRouter } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod/v4';
 import {
   createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query, isAdminUser,
@@ -6,7 +6,7 @@ import {
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
 import { emailPaymentApproved, emailPaymentRejected } from '../lib/email.js';
 
-const router: IRouter = Router();
+const router = Router();
 
 // ── Admin middleware ───────────────────────────────────────────────────────────
 

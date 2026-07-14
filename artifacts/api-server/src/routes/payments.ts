@@ -1,4 +1,4 @@
-import { Router, type Request, type Response, type IRouter } from 'express';
+import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import { z } from 'zod/v4';
 import {
@@ -9,7 +9,7 @@ import { getSession, SESSION_COOKIE } from '../lib/auth.js';
 import { checkRateLimit, retryAfterSeconds } from '../lib/rate-limit.js';
 import { emailPaymentGenerated, emailProofReceived, sendEmail } from '../lib/email.js';
 
-const router: IRouter = Router();
+const router = Router();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

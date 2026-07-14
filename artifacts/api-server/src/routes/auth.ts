@@ -1,10 +1,10 @@
-import { Router, type Request, type Response, type IRouter } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod/v4';
 import { createAdminClient, createAuthClient, DEFAULT_PREFS, isAdminUser } from '../lib/appwrite.js';
 import { signToken, getSession, SESSION_COOKIE } from '../lib/auth.js';
 import { ID } from 'node-appwrite';
 
-const router: IRouter = Router();
+const router = Router();
 
 const COOKIE_OPTS = {
   httpOnly: true,

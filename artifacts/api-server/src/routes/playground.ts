@@ -13,7 +13,7 @@
  * Token billing is reconciled after the stream completes.
  */
 
-import { Router, type Request, type Response, type IRouter } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod/v4';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
@@ -26,7 +26,7 @@ import { checkAndIncrementSlots, decrementSlots } from '../lib/appwrite-gatekeep
 
 type FetchResponse = Awaited<ReturnType<typeof fetch>>;
 
-const router: IRouter = Router();
+const router = Router();
 
 const messageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system']),

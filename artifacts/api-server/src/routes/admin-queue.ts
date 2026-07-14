@@ -12,7 +12,7 @@
  * GET  /api/admin/rate-limits             — paginated rate limit history
  */
 
-import { Router, type Request, type Response, type NextFunction, type IRouter } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod/v4';
 import { isAdminUser } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
@@ -26,7 +26,7 @@ import {
   RATE_LIMIT_PAID,
 } from '../lib/appwrite-rate-limiter.js';
 
-const router: IRouter = Router();
+const router = Router();
 
 // ─── Admin middleware ─────────────────────────────────────────────────────────
 

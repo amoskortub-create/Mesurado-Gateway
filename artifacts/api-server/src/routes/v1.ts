@@ -14,7 +14,7 @@
  * AbortController propagates client disconnect to abort the upstream AI fetch.
  */
 
-import { Router, type Request, type Response, type IRouter } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod/v4';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/appwrite.js';
 import { countTokens, calcCost } from '../lib/token-utils.js';
@@ -28,7 +28,7 @@ export { RATE_LIMIT_FREE, RATE_LIMIT_PAID };
 
 type FetchResponse = Awaited<ReturnType<typeof fetch>>;
 
-const router: IRouter = Router();
+const router = Router();
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

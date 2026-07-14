@@ -1,8 +1,8 @@
-import { Router, type Request, type Response, type IRouter } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, Query } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
 
-const router: IRouter = Router();
+const router = Router();
 
 // GET /api/user/usage
 router.get('/usage', async (req: Request, res: Response) => {
