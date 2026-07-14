@@ -31,5 +31,4 @@
 // Express type errors on Vercel. The bundled JS output has no such concern.
 // @ts-expect-error -- plain bundled JS output, no declaration file by design.
 import app from "../artifacts/api-server/dist/app.mjs";
-
 export default app;

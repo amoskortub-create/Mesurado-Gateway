@@ -15,7 +15,16 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: [
+      path.resolve(artifactDir, "src/index.ts"),
+      // Bundled separately (no `.listen()`, no PORT requirement) so serverless
+      // entry points (e.g. Vercel's api/[...path].ts) can import a plain,
+      // pre-typechecked JS module instead of raw TypeScript source. Importing
+      // raw source there would pull artifacts/api-server's files into the
+      // root tsconfig's type-check scope, which does not carry the project
+      // references / settings api-server's own tsconfig relies on.
+      path.resolve(artifactDir, "src/app.ts"),
+    ],
     platform: "node",
     bundle: true,
     format: "esm",

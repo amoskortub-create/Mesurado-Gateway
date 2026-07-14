@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "pnpm install --frozen-lockfile --prod=false && pnpm --filter @workspace/mesurado-dashboard run build",
+  "buildCommand": "pnpm install --frozen-lockfile --prod=false && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/mesurado-dashboard run build",
   "installCommand": "pnpm install --frozen-lockfile --prod=false",
   "outputDirectory": "artifacts/mesurado-dashboard/dist/public",
   "functions": {
