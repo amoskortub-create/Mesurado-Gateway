@@ -164,7 +164,8 @@ router.post('/adjust-rate-limit', requireAdmin, async (req: Request, res: Respon
         message: 'Rate limit override cleared — user falls back to plan defaults.',
       });
     } else {
-      await setOverrideLimit(user_id, new_limit);
+      // Zod's .refine() above guarantees new_limit is defined when action === 'set'.
+      await setOverrideLimit(user_id, new_limit!);
       req.log.info({ userId: user_id, newLimit: new_limit }, '[admin] rate limit override set');
       res.json({
         success: true,

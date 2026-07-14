@@ -3,6 +3,7 @@ import multer from 'multer';
 import { z } from 'zod/v4';
 import {
   createAdminClient, DATABASE_ID, COLLECTIONS, STORAGE_BUCKET_ID, ID, Query,
+  APPWRITE_ENDPOINT, APPWRITE_PROJECT_ID,
 } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
 import { checkRateLimit, retryAfterSeconds } from '../lib/rate-limit.js';
