@@ -2,3 +2,4 @@
 - [Mesurado artifact layout](mesurado-artifact-layout.md) — dashboard at artifacts/mesurado-dashboard (port 22802, previewPath /), api-server at artifacts/api-server (port 8080, paths /api + /v1); migration-backup duplicates in .migration-backup/ are stale and unstarted.
 - [Mesurado payments system](mesurado-payments.md) — MTN Mobile Money manual payment flow; Appwrite collections, Storage bucket, admin label, env vars, and immutable business rules.
 - [Mesurado rate-limit + queue system](mesurado-rate-queue.md) — three-layer protection: per-user Redis rate limit, in-memory semaphore queue (max 3 slots / 10 queued / 20s timeout), SSE streaming with pre-charge rollback guarantee.
+- [Mesurado Vercel auth crash](mesurado-vercel-cors-crash.md) — CORS error-callback throwing caused empty JSON responses on Vercel; never throw in cors() origin callback, always add a global Express JSON error handler.
