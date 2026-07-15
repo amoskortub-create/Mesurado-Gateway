@@ -1,17 +1,26 @@
 /**
  * Vercel serverless entry point — catch-all for everything under /api/*.
  *
- * Because this file uses the [...path] dynamic-segment convention, Vercel
- * automatically invokes it for ANY request under /api/ (e.g. /api/auth/login,
- * /api/user/usage) with the original request path intact in req.url — no
- * rewrite needed for those.
+ * This is a single named function (api/index.ts), not the `[...path].ts`
+ * dynamic-segment filename convention. That convention was tried first and
+ * silently failed to deploy as a function at all on this project — every
+ * /api/* request fell through to the SPA's index.html rewrite instead
+ * (confirmed empirically: a plain api/ping.ts file worked, api/[...path].ts
+ * did not). Do not revert to the bracket-filename convention without
+ * re-verifying it actually gets deployed as a function.
  *
- * The public /v1/* endpoint is handled via a vercel.json rewrite that forwards
- * /v1/:path* -> /api/v1/:path* (Vercel rewrites replace the path, they don't
- * preserve the literal source path unless re-inserted via a named param), so
- * it also lands here. See artifacts/api-server/src/app.ts, which mounts the
- * v1 router at BOTH /v1 (standalone Node deployments) and /api/v1 (this
- * Vercel deployment).
+ * Instead, vercel.json has an explicit rewrite:
+ *   { "source": "/api/(.*)", "destination": "/api" }
+ * which forwards every /api/* request to this one function. Vercel rewrites
+ * preserve the original request path in req.url even though the destination
+ * is just "/api" — this is the standard, documented pattern for running a
+ * single Express app as a Vercel catch-all API function.
+ *
+ * The public /v1/* endpoint is handled via a separate vercel.json rewrite
+ * that forwards /v1/:path* -> /api/v1/:path* (which then matches the /api/(.*)
+ * rewrite above and lands here too). See artifacts/api-server/src/app.ts,
+ * which mounts the v1 router at BOTH /v1 (standalone Node deployments) and
+ * /api/v1 (this Vercel deployment).
  *
  * Caveats vs. the standalone Node process (artifacts/api-server):
  *  - The in-memory concurrency queue and rate limiter (see

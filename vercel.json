@@ -4,12 +4,13 @@
   "installCommand": "pnpm install --frozen-lockfile --prod=false",
   "outputDirectory": "artifacts/mesurado-dashboard/dist/public",
   "functions": {
-    "api/**/*.ts": {
+    "api/index.ts": {
       "maxDuration": 60
     }
   },
   "rewrites": [
     { "source": "/v1/:path*", "destination": "/api/v1/:path*" },
+    { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
