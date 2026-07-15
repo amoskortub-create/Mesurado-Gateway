@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'wouter';
 import { LayoutDashboard, Terminal, Key, BarChart3, CreditCard, Zap, Activity, X, Wallet, ShieldCheck, BookOpen } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useAdminStats } from '@/hooks/use-admin-stats';
 
 const BASE_NAV_ITEMS = [
   { href: '/overview', label: 'Overview', icon: LayoutDashboard },
@@ -20,6 +21,7 @@ interface SidebarProps {
 export function Sidebar({ open, onClose }: SidebarProps) {
   const [pathname] = useLocation();
   const { isAdmin } = useAuth();
+  const { pendingCount } = useAdminStats(isAdmin);
 
   const navItems = isAdmin
     ? [...BASE_NAV_ITEMS, { href: '/admin/payments', label: 'Admin', icon: ShieldCheck }]
@@ -118,7 +120,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                   }}
                 />
                 <span className={isActive ? 'font-semibold' : ''}>{label}</span>
-                {isAdminItem && !isActive && (
+                {isAdminItem && pendingCount > 0 && (
+                  <span
+                    className="ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold text-white min-w-[20px] text-center"
+                    style={{ background: 'hsl(0 72% 51%)' }}
+                    title={`${pendingCount} payment${pendingCount === 1 ? '' : 's'} awaiting review`}
+                  >
+                    {pendingCount > 99 ? '99+' : pendingCount}
+                  </span>
+                )}
+                {isAdminItem && pendingCount === 0 && !isActive && (
                   <span className="ml-auto text-xs px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'hsl(142 76% 45% / 0.15)', color: 'hsl(142 76% 40%)' }}>
                     Admin
                   </span>

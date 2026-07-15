@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { z } from 'zod/v4';
 import {
-  createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query, isAdminUser,
+  createAdminClient, DATABASE_ID, COLLECTIONS, STORAGE_BUCKET_ID, ID, Query, isAdminUser,
 } from '../lib/appwrite.js';
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
 import { emailPaymentApproved, emailPaymentRejected } from '../lib/email.js';
@@ -74,7 +74,14 @@ router.get('/payments', requireAdmin, async (req, res) => {
       proof_submitted: d.proof_submitted,
       proof_transaction_id: d.proof_transaction_id,
       proof_phone_number: d.proof_phone_number,
-      proof_screenshot_url: d.proof_screenshot_url,
+      // Serve screenshots through our own authenticated proxy instead of the
+      // raw Appwrite storage URL — the bucket has no public/anonymous read
+      // permission, so a direct link 401s ("user_unauthorized") for anyone
+      // without an Appwrite Console session. The proxy uses the server's
+      // admin API key, gated behind requireAdmin below.
+      proof_screenshot_url: d.proof_screenshot_file_id
+        ? `/api/admin/payments/screenshot/${d.proof_screenshot_file_id}`
+        : d.proof_screenshot_url,
       expires_at: d.expires_at,
       created_at: d.$createdAt,
       reviewed_at: d.reviewed_at,
@@ -86,6 +93,92 @@ router.get('/payments', requireAdmin, async (req, res) => {
   } catch (err) {
     req.log.error({ err }, '[GET /api/admin/payments]');
     res.status(500).json({ error: 'Failed to fetch admin payments' });
+  }
+});
+
+// ── GET /api/admin/payments/screenshot/:fileId ────────────────────────────────
+// Streams a payment-proof screenshot from the private Appwrite Storage
+// bucket using the server's admin API key. Keeps the bucket non-public while
+// still letting admins view proofs in the browser.
+
+router.get('/payments/screenshot/:fileId', requireAdmin, async (req, res) => {
+  const fileId = String(req.params.fileId);
+  try {
+    const { storage } = createAdminClient();
+    const [buffer, file] = await Promise.all([
+      storage.getFileView(STORAGE_BUCKET_ID, fileId),
+      storage.getFile(STORAGE_BUCKET_ID, fileId),
+    ]);
+    res.setHeader('Content-Type', file.mimeType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.send(Buffer.from(buffer as ArrayBuffer));
+  } catch (err) {
+    req.log.error({ err, fileId }, '[GET /api/admin/payments/screenshot/:fileId]');
+    res.status(404).json({ error: 'Screenshot not found' });
+  }
+});
+
+// ── GET /api/admin/payments/stats ─────────────────────────────────────────────
+// Revenue totals (today / this week / this month) computed from approved
+// payments, plus a live count of payments awaiting review (status: paid).
+// The frontend re-polls this and also re-fetches on Appwrite realtime events
+// for the payments collection, so numbers update without a manual refresh.
+
+router.get('/payments/stats', requireAdmin, async (req, res) => {
+  try {
+    const { databases } = createAdminClient();
+
+    const now = new Date();
+    const startOfToday = new Date(now); startOfToday.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(startOfToday);
+    const dow = startOfWeek.getDay(); // 0 = Sunday
+    startOfWeek.setDate(startOfWeek.getDate() - dow);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Approved payments this month cover today/week/month once bucketed —
+    // fetch once from the earliest boundary we need.
+    const approvedDocs: Record<string, unknown>[] = [];
+    let offset = 0;
+    for (;;) {
+      const page = await databases.listDocuments(DATABASE_ID, COLLECTIONS.PAYMENTS, [
+        Query.equal('status', 'approved'),
+        Query.greaterThanEqual('reviewed_at', startOfMonth.toISOString()),
+        Query.orderDesc('reviewed_at'),
+        Query.limit(100),
+        Query.offset(offset),
+      ]);
+      approvedDocs.push(...(page.documents as unknown as Record<string, unknown>[]));
+      if (page.documents.length < 100) break;
+      offset += 100;
+      if (offset > 5000) break; // safety cap
+    }
+
+    let today = 0, week = 0, month = 0;
+    for (const d of approvedDocs) {
+      const amount = Number(d.amount_usd ?? 0);
+      const reviewedAt = new Date(String(d.reviewed_at));
+      month += amount;
+      if (reviewedAt >= startOfWeek) week += amount;
+      if (reviewedAt >= startOfToday) today += amount;
+    }
+
+    const pending = await databases.listDocuments(DATABASE_ID, COLLECTIONS.PAYMENTS, [
+      Query.equal('status', 'paid'),
+      Query.limit(1),
+    ]);
+
+    res.json({
+      revenue: {
+        today: Math.round(today * 100) / 100,
+        week: Math.round(week * 100) / 100,
+        month: Math.round(month * 100) / 100,
+      },
+      pendingCount: pending.total,
+      asOf: now.toISOString(),
+    });
+  } catch (err) {
+    req.log.error({ err }, '[GET /api/admin/payments/stats]');
+    res.status(500).json({ error: 'Failed to compute payment stats' });
   }
 });
 
@@ -142,12 +235,15 @@ router.post('/payments/approve', requireAdmin, async (req, res) => {
     const prefs = (user.prefs ?? {}) as Record<string, number | string>;
     const currentTokens = Number(prefs.mesurado_tokens_remaining ?? 0);
     const currentPurchased = Number(prefs.mesurado_total_purchased ?? 0);
-    const currentPlan = String(prefs.mesurado_plan ?? 'free');
 
     const newPrefs = {
       ...prefs,
       mesurado_tokens_remaining: currentTokens + tokensToAdd,
-      mesurado_plan: currentPlan === 'free' ? 'payg' : currentPlan,
+      // Any approved payment makes the user a paying (payg) customer —
+      // always force this to 'payg' rather than conditionally converting from
+      // 'free' only. A stale/legacy plan value (e.g. a manually-set string
+      // that isn't exactly 'free') must not survive an approval untouched.
+      mesurado_plan: 'payg',
       mesurado_total_purchased: currentPurchased + tokensToAdd,
     };
 

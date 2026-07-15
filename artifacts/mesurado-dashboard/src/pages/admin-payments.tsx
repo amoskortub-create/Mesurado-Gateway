@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   ShieldCheck, RefreshCw, Check, X, ChevronDown, ChevronUp,
-  Search, ExternalLink, AlertCircle,
+  Search, ExternalLink, AlertCircle, DollarSign, CalendarDays, CalendarRange,
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
+import { useAdminStats } from '@/hooks/use-admin-stats';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -279,6 +280,41 @@ function ExpandedRow({ payment }: { payment: Payment }) {
   );
 }
 
+// ── Revenue summary ───────────────────────────────────────────────────────────
+
+function RevenueCard({ icon: Icon, label, value, sublabel }: { icon: typeof DollarSign; label: string; value: string; sublabel: string }) {
+  return (
+    <div className="bg-card border border-card-border rounded-2xl p-4 shadow-sm flex items-start gap-3">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'hsl(142 76% 45% / 0.12)' }}>
+        <Icon size={18} style={{ color: 'hsl(142 76% 38%)' }} />
+      </div>
+      <div>
+        <div className="text-xl font-extrabold text-foreground tabular-nums">{value}</div>
+        <div className="text-xs font-semibold text-muted-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground/70 mt-0.5">{sublabel}</div>
+      </div>
+    </div>
+  );
+}
+
+function RevenueSummary() {
+  const { revenue, pendingCount, asOf, loading } = useAdminStats(true);
+  const fmt = (n: number) => `${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <RevenueCard icon={DollarSign} label="Revenue — Today" value={loading ? '—' : fmt(revenue.today)} sublabel="Approved payments since midnight" />
+        <RevenueCard icon={CalendarDays} label="Revenue — This Week" value={loading ? '—' : fmt(revenue.week)} sublabel="Since Sunday" />
+        <RevenueCard icon={CalendarRange} label="Revenue — This Month" value={loading ? '—' : fmt(revenue.month)} sublabel="Calendar month to date" />
+        <RevenueCard icon={AlertCircle} label="Pending Review" value={loading ? '—' : String(pendingCount)} sublabel={pendingCount > 0 ? 'Needs admin action' : 'All caught up'} />
+      </div>
+      {asOf && (
+        <p className="text-xs text-muted-foreground/60 text-right">Live — updates instantly on new payment activity · last computed {formatDateTime(asOf)}</p>
+      )}
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminPaymentsPage() {
@@ -346,6 +382,8 @@ export default function AdminPaymentsPage() {
           Refresh
         </button>
       </div>
+
+      <RevenueSummary />
 
       {/* Search + Filter tabs */}
       <div className="bg-card border border-card-border rounded-2xl shadow-sm overflow-hidden">
