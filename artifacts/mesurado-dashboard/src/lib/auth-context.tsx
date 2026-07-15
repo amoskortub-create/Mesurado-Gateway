@@ -18,6 +18,30 @@ interface AuthCtx extends AuthState {
 
 const Ctx = createContext<AuthCtx | null>(null);
 
+/**
+ * Safely parse a fetch Response as JSON. Servers can return an empty or
+ * non-JSON body on unexpected failures (crashed serverless function, CORS
+ * rejection reaching the client as a 0-length body, gateway timeout, etc.).
+ * Calling response.json() directly on those throws a confusing
+ * "Unexpected end of JSON input" error. Read as text first and only parse if
+ * there's content, so callers get a clear, actionable error message instead.
+ */
+async function parseJsonResponse<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  if (!text) {
+    throw new Error(
+      res.ok
+        ? 'Server returned an empty response'
+        : `Server error (${res.status}) — please try again`,
+    );
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error('Server returned an unexpected response — please try again');
+  }
+}
+
 const STORAGE_KEY = 'mesurado_auth';
 const LOGGED_OUT: AuthState = { isLoggedIn: false, userId: '', email: '', name: '', isAdmin: false };
 
@@ -92,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json() as { success?: boolean; userId?: string; name?: string; role?: string; error?: string };
+    const data = await parseJsonResponse<{ success?: boolean; userId?: string; name?: string; role?: string; error?: string }>(res);
     if (!res.ok || !data.success) throw new Error(data.error ?? 'Login failed');
 
     // 2. Browser-side Appwrite session (for real-time subscriptions)
@@ -118,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, name }),
     });
-    const data = await res.json() as { success?: boolean; userId?: string; name?: string; error?: string };
+    const data = await parseJsonResponse<{ success?: boolean; userId?: string; name?: string; error?: string }>(res);
     if (!res.ok || !data.success) throw new Error(data.error ?? 'Signup failed');
 
     // Browser session
