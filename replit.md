@@ -21,7 +21,7 @@ The dashboard will be available at the Replit preview URL. The API server listen
 | Service | Command | Port |
 |---|---|---|
 | API server | `pnpm --filter @workspace/api-server run dev` | 8080 |
-| Dashboard (frontend) | `pnpm --filter @workspace/mesurado-dashboard run dev` | 22802 |
+| Dashboard (frontend) | `pnpm --filter @workspace/mesurado-dashboard run dev` | 5173 |
 
 Other useful commands:
 - `pnpm run typecheck` — full typecheck across all packages
