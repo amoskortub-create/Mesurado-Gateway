@@ -2,13 +2,28 @@
 
 An AI gateway and user dashboard for the Mesurado platform — lets users chat with the Mesurado LLM engine, manage API keys, track token usage, and handle payments.
 
+## Replit setup status
+
+✅ Dependencies installed (`pnpm install` complete)  
+✅ Secrets configured: `APPWRITE_API_KEY`, `MESURADO_MASTER_TOKEN`, `SESSION_SECRET`  
+✅ Env vars set: `APPWRITE_ENDPOINT`, `APPWRITE_PROJECT_ID`, `APPWRITE_DATABASE_ID`, `MESURADO_CORE_URL`, `VITE_APPWRITE_ENDPOINT`, `VITE_APPWRITE_PROJECT_ID`  
+✅ Workflows running: **API Server** (port 8080) and **Dashboard** (port 5173)
+
 ## First-time setup (after import or fresh clone)
 
 ```sh
 pnpm install          # install all workspace dependencies
 ```
 
-Then start both workflows from the Replit UI (or via shell):
+Then add the following Replit Secrets (Secrets tab in the sidebar):
+
+| Secret | Description |
+|---|---|
+| `APPWRITE_API_KEY` | Appwrite server-side API key |
+| `MESURADO_MASTER_TOKEN` | Auth token for the AI inference engine |
+| `SESSION_SECRET` | Random string for signing cookies — `openssl rand -hex 32` |
+
+Then start both workflows from the Replit UI:
 - **API Server** — `artifacts/api-server: API Server`
 - **Dashboard** — `artifacts/mesurado-dashboard: web`
 
