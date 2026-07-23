@@ -242,7 +242,7 @@ router.post('/chat', async (req, res) => {
             'X-Mesurado-Auth': masterToken,
             'X-Mesurado-Origin': process.env.MESURADO_DOMAIN ?? 'mesurado.mediatechliberia.online',
           },
-          body: JSON.stringify({ prompt, temperature }),
+          body: JSON.stringify({ prompt }),
           signal: fetchSignal,
         });
       } catch (fetchErr: unknown) {
