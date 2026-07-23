@@ -23,6 +23,7 @@ import { resolveCoreUrl } from '../lib/core-url.js';
 import { needsSearch, webSearch } from '../lib/search.js';
 import { checkRateLimit, setRateLimitHeaders } from '../lib/appwrite-rate-limiter.js';
 import { checkAndIncrementSlots, decrementSlots } from '../lib/appwrite-gatekeeper.js';
+import { logRejection } from '../lib/rejected-logger.js';
 
 type FetchResponse = Awaited<ReturnType<typeof fetch>>;
 
@@ -95,6 +96,7 @@ router.post('/chat', async (req, res) => {
 
     const basePromptTokens = countTokens(messages.map(m => m.content).join(' '));
     if (tokensRemaining < basePromptTokens) {
+      void logRejection(session.userId, 'playground', 'Token balance exhausted', 402);
       res.status(402).json({ error: 'Token balance exhausted. Add funds to continue.' });
       return;
     }
@@ -104,6 +106,7 @@ router.post('/chat', async (req, res) => {
     setRateLimitHeaders(res, rateResult);
 
     if (!rateResult.allowed) {
+      void logRejection(session.userId, 'playground', `Rate limit exceeded (${rateResult.limit} req/min)`, 429);
       res.status(429).json({
         error: `Rate limit exceeded. You may make ${rateResult.limit} requests per minute.`,
       });
@@ -114,6 +117,7 @@ router.post('/chat', async (req, res) => {
     const coreUrl     = resolveCoreUrl();
     const masterToken = process.env.MESURADO_MASTER_TOKEN;
     if (!coreUrl || !masterToken) {
+      void logRejection(session.userId, 'playground', 'Engine not configured on gateway', 503);
       res.status(503).json({ error: 'Mesurado engine is not configured on this gateway.' });
       return;
     }
@@ -121,6 +125,7 @@ router.post('/chat', async (req, res) => {
     // ── 6. Concurrency slots (Appwrite — immediate reject, self-healing) ───
     const slotResult = await checkAndIncrementSlots();
     if (!slotResult.acquired) {
+      void logRejection(session.userId, 'playground', 'Service at capacity — all slots in use', 429);
       res.status(429).json({
         error: 'Mesurado is at capacity. Please retry in a few seconds.',
         code: 'CAPACITY_EXCEEDED',

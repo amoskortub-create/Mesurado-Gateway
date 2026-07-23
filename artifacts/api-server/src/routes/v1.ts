@@ -22,6 +22,7 @@ import { hashApiKey } from '../lib/key-hash.js';
 import { resolveCoreUrl } from '../lib/core-url.js';
 import { checkRateLimit, setRateLimitHeaders, RATE_LIMIT_FREE, RATE_LIMIT_PAID } from '../lib/appwrite-rate-limiter.js';
 import { checkAndIncrementSlots, decrementSlots } from '../lib/appwrite-gatekeeper.js';
+import { logRejection } from '../lib/rejected-logger.js';
 
 // Keep these exports so any future code referencing these constants still compiles.
 export { RATE_LIMIT_FREE, RATE_LIMIT_PAID };
@@ -123,6 +124,7 @@ router.post('/chat/completions', async (req, res) => {
     const promptTokens = countTokens(messages.map(m => m.content).join(' '));
 
     if (tokensRemaining < promptTokens) {
+      void logRejection(userId, 'api', 'Token balance exhausted', 402);
       jsonError(res, 'Token balance exhausted. Log in to your Mesurado dashboard to add funds.', 'insufficient_quota', 402);
       return;
     }
@@ -135,6 +137,7 @@ router.post('/chat/completions', async (req, res) => {
     setRateLimitHeaders(res, rateResult);
 
     if (!rateResult.allowed) {
+      void logRejection(userId, 'api', `Rate limit exceeded (${rateResult.limit} req/min)`, 429);
       jsonError(res, `Rate limit exceeded. You may make ${rateResult.limit} requests per minute.`, 'rate_limit_error', 429);
       return;
     }
@@ -170,6 +173,7 @@ router.post('/chat/completions', async (req, res) => {
     const slotResult = await checkAndIncrementSlots();
     if (!slotResult.acquired) {
       await restorePrecharge();
+      void logRejection(userId, 'api', 'Service at capacity — all slots in use', 429);
       jsonError(res, 'Mesurado is at capacity. Please retry in a few seconds.', 'rate_limit_error', 429);
       return;
     }

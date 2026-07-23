@@ -22,11 +22,20 @@ router.get('/usage', async (req, res) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const logs = await databases.listDocuments(DATABASE_ID, COLLECTIONS.USAGE_LOGS, [
-      Query.equal('user_id', session.userId),
-      Query.greaterThanEqual('timestamp', thirtyDaysAgo.toISOString()),
-      Query.orderDesc('timestamp'),
-      Query.limit(500),
+    // Fetch usage logs and rejected logs in parallel
+    const [logs, rejected] = await Promise.all([
+      databases.listDocuments(DATABASE_ID, COLLECTIONS.USAGE_LOGS, [
+        Query.equal('user_id', session.userId),
+        Query.greaterThanEqual('timestamp', thirtyDaysAgo.toISOString()),
+        Query.orderDesc('timestamp'),
+        Query.limit(500),
+      ]),
+      databases.listDocuments(DATABASE_ID, COLLECTIONS.REJECTED_LOGS, [
+        Query.equal('user_id', session.userId),
+        Query.greaterThanEqual('timestamp', thirtyDaysAgo.toISOString()),
+        Query.orderDesc('timestamp'),
+        Query.limit(200),
+      ]),
     ]);
 
     const dailyMap: Record<string, number> = {};
@@ -54,7 +63,15 @@ router.get('/usage', async (req, res) => {
       keyId: doc.key_id ?? '',
     }));
 
-    res.json({ tokensRemaining, totalTokensUsed, plan, dailyUsage, recentLogs });
+    const rejectedLogs = rejected.documents.map(doc => ({
+      id: doc.$id,
+      timestamp: doc.timestamp,
+      source: doc.source as 'api' | 'playground',
+      reason: doc.reason as string,
+      errorCode: Number(doc.error_code),
+    }));
+
+    res.json({ tokensRemaining, totalTokensUsed, plan, dailyUsage, recentLogs, rejectedLogs });
   } catch (err) {
     req.log.error({ err }, '[GET /api/user/usage]');
     res.status(500).json({ error: 'Failed to fetch usage data' });

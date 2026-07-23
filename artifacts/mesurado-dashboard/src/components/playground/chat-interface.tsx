@@ -32,6 +32,10 @@ interface ChatInterfaceProps {
   settingsOpen: boolean;
   onSettingsToggle: () => void;
   onTokensUsed?: () => void;
+  initialMessages?: { role: 'user' | 'assistant'; content: string }[];
+  conversationId?: string | null;
+  onConversationCreated?: (id: string, title: string) => void;
+  onConversationUpdated?: (id: string) => void;
 }
 
 const SUGGESTIONS = [
@@ -91,8 +95,14 @@ export function ChatInterface({
   settingsOpen,
   onSettingsToggle,
   onTokensUsed,
+  initialMessages,
+  conversationId,
+  onConversationCreated,
+  onConversationUpdated,
 }: ChatInterfaceProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(
+    (initialMessages ?? []).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+  );
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
@@ -100,6 +110,7 @@ export function ChatInterface({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const conversationIdRef = useRef<string | null>(conversationId ?? null);
 
   useEffect(() => { setLocalTokens(initialTokens); }, [initialTokens]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
@@ -230,6 +241,39 @@ export function ChatInterface({
       });
 
       void placeholderIdx; // suppress unused warning
+
+      // ── Save conversation (fire-and-forget) ────────────────────────────
+      const cleanMessages = [
+        ...apiMessages.map(m => ({ role: m.role, content: m.content })),
+        { role: 'assistant' as const, content: accumulated },
+      ];
+      const serialized = JSON.stringify(cleanMessages);
+      if (serialized.length <= 31000) {
+        if (!conversationIdRef.current) {
+          const title = text.slice(0, 100);
+          fetch('/api/playground/conversations', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, messages: serialized }),
+          })
+            .then(r => r.ok ? (r.json() as Promise<{ id: string }>) : Promise.reject())
+            .then(data => {
+              conversationIdRef.current = data.id;
+              onConversationCreated?.(data.id, title);
+            })
+            .catch(() => {});
+        } else {
+          fetch(`/api/playground/conversations/${conversationIdRef.current}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: serialized }),
+          })
+            .then(() => { onConversationUpdated?.(conversationIdRef.current!); })
+            .catch(() => {});
+        }
+      }
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
         // User cancelled — clean up the placeholder

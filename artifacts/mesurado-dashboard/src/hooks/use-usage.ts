@@ -12,12 +12,21 @@ export interface UsageLog {
   keyId: string;
 }
 
+export interface RejectedLog {
+  id: string;
+  timestamp: string;
+  source: 'api' | 'playground';
+  reason: string;
+  errorCode: number;
+}
+
 export interface UsageData {
   tokensRemaining: number;
   totalTokensUsed: number;
   plan: 'free' | 'payg';
   dailyUsage: { date: string; tokens: number }[];
   recentLogs: UsageLog[];
+  rejectedLogs: RejectedLog[];
 }
 
 export interface UseUsageResult extends UsageData {
@@ -32,6 +41,7 @@ const EMPTY: UsageData = {
   plan: 'free',
   dailyUsage: [],
   recentLogs: [],
+  rejectedLogs: [],
 };
 
 export function useUsage(): UseUsageResult {

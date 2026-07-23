@@ -4,14 +4,16 @@ export const DATABASE_ID = process.env.APPWRITE_DATABASE_ID ?? 'mesurado';
 export const STORAGE_BUCKET_ID = process.env.APPWRITE_STORAGE_BUCKET_ID ?? 'payment_screenshots';
 
 export const COLLECTIONS = {
-  API_KEYS:               'api_keys',
-  USAGE_LOGS:             'usage_logs',
-  PAYMENTS:               'payments',
-  RATE_LIMITS:            'rate_limits',
-  GATEKEEPER_SLOTS:       'gatekeeper_slots',
-  REQUEST_QUEUE:          'request_queue',
-  RATE_LIMIT_OVERRIDES:   'rate_limit_overrides',
-  ADMINS:                 'admins',
+  API_KEYS:                    'api_keys',
+  USAGE_LOGS:                  'usage_logs',
+  PAYMENTS:                    'payments',
+  RATE_LIMITS:                 'rate_limits',
+  GATEKEEPER_SLOTS:            'gatekeeper_slots',
+  REQUEST_QUEUE:               'request_queue',
+  RATE_LIMIT_OVERRIDES:        'rate_limit_overrides',
+  ADMINS:                      'admins',
+  PLAYGROUND_CONVERSATIONS:    'playground_conversations',
+  REJECTED_LOGS:               'rejected_logs',
 } as const;
 
 export { ID, Query };
