@@ -298,13 +298,14 @@ export function ChatInterface({
           content: 'Request cancelled.',
         }]);
       } else {
+        const errorMsg = err instanceof Error ? err.message : 'Request failed';
         setMessages(prev => {
           const updated = [...prev];
           for (let i = updated.length - 1; i >= 0; i--) {
             if (updated[i].role === 'assistant' && updated[i].streaming) {
               updated[i] = {
                 role: 'assistant',
-                content: `Error: ${err instanceof Error ? err.message : 'Request failed'}. Please try again.`,
+                content: `Error: ${errorMsg}. Please try again.`,
                 streaming: false,
               };
               break;
@@ -312,6 +313,52 @@ export function ChatInterface({
           }
           return updated;
         });
+
+        // Save conversation even on error so history is preserved
+        const cleanMessages = [
+          ...apiMessages.map(m => ({ role: m.role, content: m.content })),
+          { role: 'assistant' as const, content: `[Error] ${errorMsg}` },
+        ];
+        const serialized = JSON.stringify(cleanMessages);
+        if (serialized.length <= 31000) {
+          if (!conversationIdRef.current) {
+            const title = text.slice(0, 100);
+            fetch('/api/playground/conversations', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ title, messages: serialized }),
+            })
+              .then(async r => {
+                if (!r.ok) {
+                  const body = await r.text().catch(() => '');
+                  console.error(`[conversations] save failed (${r.status}):`, body);
+                  return null;
+                }
+                return r.json() as Promise<{ id: string }>;
+              })
+              .then(data => {
+                if (!data) return;
+                conversationIdRef.current = data.id;
+                onConversationCreated?.(data.id, title);
+              })
+              .catch(e => console.error('[conversations] save error:', e));
+          } else {
+            fetch(`/api/playground/conversations/${conversationIdRef.current}`, {
+              method: 'PUT',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ messages: serialized }),
+            })
+              .then(async r => {
+                if (!r.ok) {
+                  const body = await r.text().catch(() => '');
+                  console.error(`[conversations] update failed (${r.status}):`, body);
+                }
+              })
+              .catch(e => console.error('[conversations] update error:', e));
+          }
+        }
       }
     } finally {
       setLoading(false);

@@ -231,6 +231,7 @@ router.post('/chat/completions', async (req, res) => {
           ? 'Mesurado engine timed out. Please retry.'
           : 'Mesurado engine is scaling or unreachable.';
         const code = e?.name === 'TimeoutError' ? 504 : 502;
+        void logRejection(keyDoc.user_id, 'api', msg, code);
         jsonError(res, msg, 'server_error', code);
         return;
       }
@@ -238,8 +239,10 @@ router.post('/chat/completions', async (req, res) => {
       if (!aiRes.ok) {
         await restorePrecharge();
         if (aiRes.status === 429) {
+          void logRejection(keyDoc.user_id, 'api', 'Mesurado is at capacity. Please retry in a few seconds.', 429);
           jsonError(res, 'Mesurado is at capacity. Please retry in a few seconds.', 'rate_limit_error', 429);
         } else {
+          void logRejection(keyDoc.user_id, 'api', 'Mesurado engine is scaling or unreachable.', 502);
           jsonError(res, 'Mesurado engine is scaling or unreachable.', 'server_error', 502);
         }
         return;

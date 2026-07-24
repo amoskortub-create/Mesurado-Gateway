@@ -257,6 +257,7 @@ router.post('/chat', async (req, res) => {
           ? 'Request timed out waiting for Mesurado engine.'
           : 'Mesurado engine is scaling or unreachable.';
         const code = e?.name === 'TimeoutError' ? 504 : 502;
+        void logRejection(session.userId, 'playground', msg, code);
         sendEvent(res, { type: 'error', code, message: msg });
         sendDone(res);
         return;
@@ -268,6 +269,7 @@ router.post('/chat', async (req, res) => {
         const msg  = aiRes.status === 429
           ? 'Mesurado is at capacity. Please retry in a few seconds.'
           : 'Mesurado engine is scaling or unreachable.';
+        void logRejection(session.userId, 'playground', msg, code);
         sendEvent(res, { type: 'error', code, message: msg });
         sendDone(res);
         return;
