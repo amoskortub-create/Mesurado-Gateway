@@ -215,7 +215,7 @@ router.post('/payments/approve', requireAdmin, async (req, res) => {
     }
 
     const amountUsd = Number(doc.amount_usd);
-    const tokensToAdd = Math.floor((amountUsd / 0.75) * 1_000_000);
+    const tokensToAdd = Math.floor((amountUsd / 1.50) * 1_000_000);
     const userId = String(doc.user_id);
     const userEmail = String(doc.user_email);
 

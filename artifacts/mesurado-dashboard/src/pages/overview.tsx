@@ -46,7 +46,7 @@ export default function OverviewPage() {
         <MetricCard
           title="Current Plan"
           value={isPaidUser ? 'Pay-As-You-Go' : 'Free'}
-          subtitle={isPaidUser ? '$0.75 / 1M tokens' : '100K tokens included'}
+          subtitle={isPaidUser ? '$1.50 / 1M tokens' : '100K tokens included'}
           variant="navy"
           icon={<Star size={20} />}
           badge={isPaidUser ? 'Live Search ✓' : 'Free Tier'}
@@ -68,9 +68,9 @@ export default function OverviewPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: isPaidUser ? 'Plan' : 'Free Allocation', value: isPaidUser ? 'Pay-As-You-Go' : '100,000' },
-          { label: 'Rate', value: '$0.75 / 1M tokens' },
+          { label: 'Rate', value: '$1.50 / 1M tokens' },
           { label: 'Pct. Used', value: totalTokensUsed > 0 ? `${((totalTokensUsed / (totalTokensUsed + tokensRemaining)) * 100).toFixed(1)}%` : '0.0%' },
-          { label: 'Est. Value Used', value: `$${(totalTokensUsed * 0.75 / 1_000_000).toFixed(4)}` },
+          { label: 'Est. Value Used', value: `$${(totalTokensUsed * 1.50 / 1_000_000).toFixed(4)}` },
         ].map(stat => (
           <div key={stat.label} className="bg-card border border-card-border rounded-xl p-3 md:p-4 shadow-sm">
             <div className="text-base md:text-lg font-bold text-foreground tabular-nums">{loading ? '—' : stat.value}</div>

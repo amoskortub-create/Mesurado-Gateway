@@ -15,7 +15,7 @@ const FREE_FEATURES = [
 ];
 
 const PAYG_FEATURES = [
-  { label: 'Pay-as-you-go at $0.75 / 1M tokens', included: true },
+  { label: 'Pay-as-you-go at $1.50 / 1M tokens', included: true },
   { label: 'No monthly commitment', included: true },
   { label: 'Full API access via /v1/chat/completions', included: true },
   { label: 'Playground access for testing', included: true },
@@ -64,7 +64,7 @@ export default function BillingPage() {
               {loading ? '…' : isPaidUser ? 'Pay-As-You-Go' : 'Free Plan'}
             </h3>
             <p className="text-sm text-muted-foreground">
-              {isPaidUser ? '$0.75 / 1M tokens — no commitment' : '100,000 tokens — non-renewable'}
+              {isPaidUser ? '$1.50 / 1M tokens — no commitment' : '100,000 tokens — non-renewable'}
             </p>
           </div>
           <span className="flex items-center gap-1.5 text-xs font-bold px-2.5 md:px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 flex-shrink-0">
@@ -91,7 +91,7 @@ export default function BillingPage() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: 'Rate', value: '$0.75 / 1M tokens' },
+            { label: 'Rate', value: '$1.50 / 1M tokens' },
             { label: 'Tokens Used', value: loading ? '—' : formatNumber(totalTokensUsed) },
             { label: 'Est. Cost to Date', value: loading ? '—' : `$${estimatedCost.toFixed(4)}` },
             { label: 'Balance Remaining', value: loading ? '—' : formatNumber(tokensRemaining) },
@@ -172,7 +172,7 @@ export default function BillingPage() {
         </div>
         <p className="text-xs text-muted-foreground mb-3">
           {isPaidUser
-            ? 'Top up your token balance using MTN Mobile Money. $0.75 per 1,000,000 tokens. Amounts in USD.'
+            ? 'Top up your token balance using MTN Mobile Money. $1.50 per 1,000,000 tokens. Amounts in USD.'
             : 'Upgrade to Pay-As-You-Go for real-time web results, multiple API keys, and unlimited token top-ups via MTN Mobile Money.'}
         </p>
         <Link href="/billing/add-funds">

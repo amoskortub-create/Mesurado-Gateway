@@ -65,7 +65,7 @@ function ApproveModal({
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const tokens = Math.floor((payment.amount_usd / 0.75) * 1_000_000);
+  const tokens = Math.floor((payment.amount_usd / 1.50) * 1_000_000);
 
   async function handleApprove() {
     setSubmitting(true);

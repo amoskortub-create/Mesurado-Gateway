@@ -32,7 +32,7 @@ type Step = 'select' | 'payment' | 'proof' | 'submitted';
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const PRESET_AMOUNTS = [5, 10, 25, 50, 100];
-const TOKENS_PER_USD = 1_000_000 / 0.75;
+const TOKENS_PER_USD = 1_000_000 / 1.50;
 
 function calcTokens(usd: number): number {
   return Math.floor(usd * TOKENS_PER_USD);
@@ -237,7 +237,7 @@ export default function AddFundsPage() {
         <div className="bg-card border border-card-border rounded-2xl p-6 shadow-sm space-y-6">
           <div>
             <h3 className="font-bold text-foreground mb-1">Select amount (USD)</h3>
-            <p className="text-xs text-muted-foreground">All amounts in US Dollars. Rate: $0.75 = 1,000,000 tokens.</p>
+            <p className="text-xs text-muted-foreground">All amounts in US Dollars. Rate: $1.50 = 1,000,000 tokens.</p>
           </div>
 
           {/* Preset buttons */}
