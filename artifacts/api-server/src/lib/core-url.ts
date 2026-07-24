@@ -6,7 +6,7 @@
  * a 503 misconfiguration error in that case.
  */
 export function resolveCoreUrl(): string | undefined {
-  return process.env.MESURADO_CORE_URL || undefined;
+  return process.env.MESURADO_CORE_URL || 'https://ai.mediatechliberia.online:8443';
 }
 
 /**

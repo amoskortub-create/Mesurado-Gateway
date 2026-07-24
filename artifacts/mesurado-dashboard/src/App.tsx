@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Route, Switch, Router as WouterRouter, Redirect } from 'wouter';
+import { Route, Switch, Router as WouterRouter, Redirect, useLocation } from 'wouter';
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import LoginPage from '@/pages/login';
