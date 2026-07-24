@@ -37,7 +37,7 @@ const ALLOWED_ORIGINS = (() => {
     .split(',')
     .map((d) => d.trim())
     .filter(Boolean)
-    .concat(['mesurado.mediatechliberia.online']);
+    .concat(['mesurado.mediatechliberia.online', 'diatechliberia.online']);
   const origins = new Set<string>([
     'http://localhost:3000',
     'http://localhost:5173',
