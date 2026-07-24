@@ -53,12 +53,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {/* Logo / Brand */}
         <div className="px-5 py-5 border-b flex items-center justify-between" style={{ borderColor: 'hsl(var(--sidebar-border))' }}>
           <div className="flex items-center gap-3 min-w-0">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-lg text-white shadow-lg flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(0 72% 40%) 100%)' }}
-            >
-              M
-            </div>
+            <img src="/logo.svg" alt="Mesurado AI" className="w-9 h-9 rounded-xl flex-shrink-0 shadow-lg" />
             <div className="min-w-0">
               <div className="text-white font-extrabold text-sm tracking-tight leading-tight">Mesurado AI</div>
               <div className="text-xs font-medium" style={{ color: 'hsl(var(--sidebar-foreground))' }}>

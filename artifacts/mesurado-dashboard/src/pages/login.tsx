@@ -54,8 +54,7 @@ export default function LoginPage() {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-10 md:mb-16">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-lg"
-              style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%) 0%, hsl(0 72% 38%) 100%)' }}>M</div>
+            <img src="/logo.svg" alt="Mesurado AI" className="w-10 h-10 rounded-xl shadow-lg" />
             <div>
               <div className="text-white font-extrabold text-lg leading-tight">Mesurado AI</div>
               <div className="text-xs font-medium" style={{ color: 'hsl(213 27% 60%)' }}>Developer API Gateway</div>

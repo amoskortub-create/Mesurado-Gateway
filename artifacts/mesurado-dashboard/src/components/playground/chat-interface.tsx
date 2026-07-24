@@ -310,10 +310,7 @@ export function ChatInterface({
       {/* Header */}
       <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-extrabold flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%), hsl(217 72% 40%))' }}
-          >M</div>
+          <img src="/logo.svg" alt="Mesurado AI" className="w-7 h-7 rounded-lg flex-shrink-0" />
           <div>
             <span className="text-sm font-bold text-foreground">Mesurado Playground</span>
             <span className="ml-2 text-xs text-muted-foreground hidden sm:inline">mesurado-1.0-lite</span>
@@ -339,10 +336,6 @@ export function ChatInterface({
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl font-extrabold mb-4 shadow-lg"
-              style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%), hsl(217 72% 40%))' }}
-            >M</div>
             <h3 className="font-bold text-foreground mb-1">Mesurado AI Playground</h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs">
               {isPaidUser ? 'Live web search is available. Ask anything.' : 'Ask me anything about coding, APIs, or Mesurado.'}
@@ -365,10 +358,7 @@ export function ChatInterface({
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             {msg.role === 'assistant' && (
-              <div
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-extrabold flex-shrink-0 mt-0.5 mr-2"
-                style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%), hsl(217 72% 40%))' }}
-              >M</div>
+              <img src="/logo.svg" alt="" className="w-6 h-6 rounded-lg flex-shrink-0 mt-0.5 mr-2" />
             )}
             <div
               className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
@@ -407,10 +397,7 @@ export function ChatInterface({
         {/* Loading state with status text */}
         {loading && !messages.some(m => m.streaming) && (
           <div className="flex justify-start">
-            <div
-              className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-xs font-extrabold flex-shrink-0 mt-0.5 mr-2"
-              style={{ background: 'linear-gradient(135deg, hsl(0 72% 51%), hsl(217 72% 40%))' }}
-            >M</div>
+            <img src="/logo.svg" alt="" className="w-6 h-6 rounded-lg flex-shrink-0 mt-0.5 mr-2" />
             <div className="bg-card border border-card-border rounded-2xl rounded-tl-sm px-4 py-3">
               <div className="flex items-center gap-2">
                 {statusText.includes('onnecting') || statusText.includes('queue') ? (
