@@ -257,12 +257,20 @@ export function ChatInterface({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title, messages: serialized }),
           })
-            .then(r => r.ok ? (r.json() as Promise<{ id: string }>) : Promise.reject())
+            .then(async r => {
+              if (!r.ok) {
+                const body = await r.text().catch(() => '');
+                console.error(`[conversations] save failed (${r.status}):`, body);
+                return null;
+              }
+              return r.json() as Promise<{ id: string }>;
+            })
             .then(data => {
+              if (!data) return;
               conversationIdRef.current = data.id;
               onConversationCreated?.(data.id, title);
             })
-            .catch(() => {});
+            .catch(e => console.error('[conversations] save error:', e));
         } else {
           fetch(`/api/playground/conversations/${conversationIdRef.current}`, {
             method: 'PUT',
@@ -270,8 +278,15 @@ export function ChatInterface({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ messages: serialized }),
           })
-            .then(() => { onConversationUpdated?.(conversationIdRef.current!); })
-            .catch(() => {});
+            .then(async r => {
+              if (!r.ok) {
+                const body = await r.text().catch(() => '');
+                console.error(`[conversations] update failed (${r.status}):`, body);
+                return;
+              }
+              onConversationUpdated?.(conversationIdRef.current!);
+            })
+            .catch(e => console.error('[conversations] update error:', e));
         }
       }
     } catch (err) {
