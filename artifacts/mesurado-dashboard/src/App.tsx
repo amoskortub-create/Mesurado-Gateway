@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Route, Switch, Router as WouterRouter, useLocation } from 'wouter';
+import { Route, Switch, Router as WouterRouter, Redirect } from 'wouter';
 import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import LoginPage from '@/pages/login';
@@ -21,11 +21,11 @@ const queryClient = new QueryClient();
 
 function RootRedirect() {
   const { isLoggedIn } = useAuth();
-  const [, setLocation] = useLocation();
-  useEffect(() => {
-    setLocation(isLoggedIn ? '/overview' : '/login');
-  }, [isLoggedIn, setLocation]);
-  return null;
+  // Render an immediate Redirect so there is never a blank-null frame.
+  // The old useEffect-based approach left the page blank on mobile Chrome
+  // because effects fire after paint and can stall in low-power / background
+  // situations, leaving the user stuck on a white screen indefinitely.
+  return <Redirect to={isLoggedIn ? '/overview' : '/login'} />;
 }
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
