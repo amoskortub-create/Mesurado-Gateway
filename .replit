@@ -68,6 +68,7 @@ APPWRITE_DATABASE_ID = "mesurado"
 MESURADO_DOMAIN = "mesurado.mediatechliberia.online"
 MESURADO_CORE_URL = "https://ai.mediatechliberia.online:8443"
 APPWRITE_STORAGE_BUCKET_ID = "payment_screenshots"
+ALLOW_INSECURE_CORE = "true"
 
 [userenv.development]
 ALLOW_HTTP_CORE = "true"
