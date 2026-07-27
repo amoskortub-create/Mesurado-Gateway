@@ -19,7 +19,7 @@ import { z } from 'zod/v4';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/appwrite.js';
 import { countTokens, calcCost } from '../lib/token-utils.js';
 import { hashApiKey } from '../lib/key-hash.js';
-import { resolveCoreUrl } from '../lib/core-url.js';
+import { resolveCoreUrl, coreFetchInit } from '../lib/core-url.js';
 import { checkRateLimit, setRateLimitHeaders, RATE_LIMIT_FREE, RATE_LIMIT_PAID } from '../lib/appwrite-rate-limiter.js';
 import { checkAndIncrementSlots, decrementSlots } from '../lib/appwrite-gatekeeper.js';
 import { logRejection } from '../lib/rejected-logger.js';
@@ -219,7 +219,8 @@ router.post('/chat/completions', async (req, res) => {
           },
           body: JSON.stringify({ prompt }),
           signal: fetchSignal,
-        });
+          ...coreFetchInit(),
+        } as RequestInit);
       } catch (fetchErr: unknown) {
         const e = fetchErr as { name?: string };
         await restorePrecharge();

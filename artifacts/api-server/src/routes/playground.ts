@@ -19,7 +19,7 @@ import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/a
 import { getSession, SESSION_COOKIE } from '../lib/auth.js';
 import { hashApiKey, keyPrefix } from '../lib/key-hash.js';
 import { countTokens, calcCost } from '../lib/token-utils.js';
-import { resolveCoreUrl } from '../lib/core-url.js';
+import { resolveCoreUrl, coreFetchInit } from '../lib/core-url.js';
 import { needsSearch, webSearch } from '../lib/search.js';
 import { checkRateLimit, setRateLimitHeaders } from '../lib/appwrite-rate-limiter.js';
 import { checkAndIncrementSlots, decrementSlots } from '../lib/appwrite-gatekeeper.js';
@@ -244,7 +244,8 @@ router.post('/chat', async (req, res) => {
           },
           body: JSON.stringify({ prompt }),
           signal: fetchSignal,
-        });
+          ...coreFetchInit(),
+        } as RequestInit);
       } catch (fetchErr: unknown) {
         const e = fetchErr as { name?: string };
         if (e?.name === 'AbortError' && abortController.signal.aborted) {

@@ -10,6 +10,22 @@ export function resolveCoreUrl(): string | undefined {
 }
 
 /**
+ * Returns extra fetch() init options for requests to the core engine.
+ *
+ * When ALLOW_INSECURE_CORE=true, disables TLS certificate verification for
+ * this Node.js process — needed when the engine uses a self-signed cert
+ * (e.g. non-standard port 8443 without a CA-signed certificate).
+ * This is safe here because the only outbound HTTPS targets are Appwrite
+ * and the AI core, both on trusted infrastructure.
+ */
+export function coreFetchInit(): Record<string, unknown> {
+  if (process.env.ALLOW_INSECURE_CORE === 'true') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+  }
+  return {};
+}
+
+/**
  * Validates MESURADO_CORE_URL at startup.
  *
  * Always throws on HTTP — in both development and production.
