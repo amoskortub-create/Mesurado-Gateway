@@ -19,7 +19,7 @@ import { z } from 'zod/v4';
 import { createAdminClient, DATABASE_ID, COLLECTIONS, ID, Query } from '../lib/appwrite.js';
 import { countTokens, calcCost } from '../lib/token-utils.js';
 import { hashApiKey } from '../lib/key-hash.js';
-import { resolveCoreUrl, coreFetchInit } from '../lib/core-url.js';
+import { resolveCoreUrl, coreFetch } from '../lib/core-url.js';
 import { checkRateLimit, setRateLimitHeaders, RATE_LIMIT_FREE, RATE_LIMIT_PAID } from '../lib/appwrite-rate-limiter.js';
 import { checkAndIncrementSlots, decrementSlots } from '../lib/appwrite-gatekeeper.js';
 import { logRejection } from '../lib/rejected-logger.js';
@@ -27,7 +27,7 @@ import { logRejection } from '../lib/rejected-logger.js';
 // Keep these exports so any future code referencing these constants still compiles.
 export { RATE_LIMIT_FREE, RATE_LIMIT_PAID };
 
-type FetchResponse = Awaited<ReturnType<typeof fetch>>;
+type FetchResponse = Awaited<ReturnType<typeof coreFetch>>;
 
 const router = Router();
 
@@ -210,7 +210,7 @@ router.post('/chat/completions', async (req, res) => {
 
       let aiRes: FetchResponse;
       try {
-        aiRes = await fetch(`${coreUrl}/generate`, {
+        aiRes = await coreFetch(`${coreUrl}/generate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -219,8 +219,7 @@ router.post('/chat/completions', async (req, res) => {
           },
           body: JSON.stringify({ prompt }),
           signal: fetchSignal,
-          ...coreFetchInit(),
-        } as RequestInit);
+        });
       } catch (fetchErr: unknown) {
         const e = fetchErr as { name?: string };
         await restorePrecharge();

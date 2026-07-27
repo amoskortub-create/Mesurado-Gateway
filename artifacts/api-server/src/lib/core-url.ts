@@ -1,3 +1,6 @@
+import https from 'node:https';
+import { Readable } from 'node:stream';
+
 /**
  * Returns the Mesurado Engine Core base URL from the MESURADO_CORE_URL
  * environment variable (set as a Replit Secret).
@@ -10,19 +13,67 @@ export function resolveCoreUrl(): string | undefined {
 }
 
 /**
- * Returns extra fetch() init options for requests to the core engine.
+ * A fetch()-compatible wrapper for requests to the Mesurado AI core.
  *
- * When ALLOW_INSECURE_CORE=true, disables TLS certificate verification for
- * this Node.js process — needed when the engine uses a self-signed cert
- * (e.g. non-standard port 8443 without a CA-signed certificate).
- * This is safe here because the only outbound HTTPS targets are Appwrite
- * and the AI core, both on trusted infrastructure.
+ * When ALLOW_INSECURE_CORE=true it uses Node's https module with a custom
+ * Agent that sets rejectUnauthorized=false — the only reliable way to bypass
+ * self-signed cert rejection in Node ≥18 where native fetch() uses undici's
+ * own TLS stack and does NOT honour NODE_TLS_REJECT_UNAUTHORIZED.
+ *
+ * When ALLOW_INSECURE_CORE is not set it falls through to native fetch().
  */
-export function coreFetchInit(): Record<string, unknown> {
-  if (process.env.ALLOW_INSECURE_CORE === 'true') {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+export async function coreFetch(
+  url: string,
+  init: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    signal?: AbortSignal;
+  } = {},
+): Promise<{ ok: boolean; status: number; body: ReadableStream<Uint8Array> | null }> {
+  if (process.env.ALLOW_INSECURE_CORE !== 'true') {
+    return fetch(url, init as RequestInit) as Promise<{
+      ok: boolean;
+      status: number;
+      body: ReadableStream<Uint8Array> | null;
+    }>;
   }
-  return {};
+
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const agent = new https.Agent({ rejectUnauthorized: false });
+
+    const req = https.request(
+      {
+        hostname: parsed.hostname,
+        port: parsed.port || 443,
+        path: parsed.pathname + parsed.search,
+        method: init.method ?? 'GET',
+        headers: init.headers ?? {},
+        agent,
+      },
+      (res) => {
+        const ok =
+          res.statusCode !== undefined &&
+          res.statusCode >= 200 &&
+          res.statusCode < 300;
+        // Convert Node.js Readable → Web ReadableStream (Node ≥18)
+        const body = Readable.toWeb(res) as ReadableStream<Uint8Array>;
+        resolve({ ok, status: res.statusCode ?? 500, body });
+      },
+    );
+
+    req.on('error', reject);
+
+    if (init.signal) {
+      init.signal.addEventListener('abort', () => req.destroy(new Error('AbortError')));
+    }
+
+    if (init.body) {
+      req.write(init.body);
+    }
+    req.end();
+  });
 }
 
 /**
